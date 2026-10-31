@@ -24,7 +24,19 @@ roommateDb.exec(`
     lifestyle TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )
+  );
+
+  CREATE TABLE IF NOT EXISTS connection_request (
+    id TEXT PRIMARY KEY,
+    sender_user_id TEXT NOT NULL,
+    sender_profile_id TEXT NOT NULL,
+    receiver_user_id TEXT NOT NULL,
+    receiver_profile_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(sender_user_id, receiver_user_id)
+  );
 `);
 
 export function getRoommateProfileByUserId(userId: string) {
@@ -79,4 +91,51 @@ export function getRoommateProfileById(id: string) {
       `,
     )
     .get(id);
+}
+
+export function getConnectionRequest(
+  senderUserId: string,
+  receiverUserId: string,
+) {
+  return roommateDb
+    .prepare(
+      `
+        SELECT *
+        FROM connection_request
+        WHERE sender_user_id = ?
+          AND receiver_user_id = ?
+      `,
+    )
+    .get(senderUserId, receiverUserId);
+}
+
+export function createConnectionRequest(data: {
+  id: string;
+  senderUserId: string;
+  senderProfileId: string;
+  receiverUserId: string;
+  receiverProfileId: string;
+}) {
+  return roommateDb
+    .prepare(
+      `
+        INSERT INTO connection_request (
+          id,
+          sender_user_id,
+          sender_profile_id,
+          receiver_user_id,
+          receiver_profile_id,
+          status
+        )
+        VALUES (
+          @id,
+          @senderUserId,
+          @senderProfileId,
+          @receiverUserId,
+          @receiverProfileId,
+          'pending'
+        )
+      `,
+    )
+    .run(data);
 }

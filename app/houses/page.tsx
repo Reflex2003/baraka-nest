@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import Navbar from "../navbar";
 
 const houses = [
   {
@@ -133,53 +134,7 @@ export default function HousesPage() {
 
   return (
     <main className="min-h-screen bg-[#fafafa] text-[#111111]">
-      <header className="sticky top-0 z-50 border-b border-black/[0.06] bg-[#fafafa]/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-10">
-          <Link
-            href="/"
-            className="text-xl font-bold tracking-[-0.04em]"
-          >
-            Baraka<span className="text-black/35">Nest</span>
-          </Link>
-
-          <nav className="hidden items-center gap-8 md:flex">
-            <Link
-              href="/houses"
-              className="text-sm font-semibold text-black"
-            >
-              Houses
-            </Link>
-
-            <Link
-              href="/roommates"
-              className="text-sm font-medium text-black/50 transition hover:text-black"
-            >
-              Roommates
-            </Link>
-
-            <Link
-              href="/login"
-              className="text-sm font-medium text-black/50 transition hover:text-black"
-            >
-              Log in
-            </Link>
-
-            <Link
-              href="/register"
-              className="rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black/80"
-            >
-              Get started
-            </Link>
-          </nav>
-
-          <Link
-            href="/register"
-            className="rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white md:hidden"
-          >
-            Get started
-          </Link>
-        </div>
-      </header>
+      <Navbar />
 
       <section className="border-b border-black/[0.07] bg-white">
         <div className="mx-auto max-w-7xl px-6 pb-14 pt-16 sm:px-8 lg:px-10 lg:pb-20 lg:pt-24">
@@ -430,10 +385,7 @@ export default function HousesPage() {
       </section>
 
       <footer className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-10 text-sm text-black/35 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
-        <Link
-          href="/"
-          className="font-semibold text-black"
-        >
+        <Link href="/" className="font-semibold text-black">
           Baraka<span className="text-black/30">Nest</span>
         </Link>
 
