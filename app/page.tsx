@@ -1,241 +1,340 @@
-"use client";
+import Link from "next/link";
 
-import { useState } from "react";
-import Navbar from "./navbar";
+const features = [
+  {
+    number: "01",
+    title: "Find a home",
+    description:
+      "Discover student-friendly houses in the areas that matter to you.",
+  },
+  {
+    number: "02",
+    title: "Find a roommate",
+    description:
+      "Connect with students looking for a compatible person to share a space.",
+  },
+  {
+    number: "03",
+    title: "Choose with confidence",
+    description:
+      "Compare your options before deciding where your next chapter begins.",
+  },
+];
 
 export default function Home() {
-  const [mode, setMode] = useState<"house" | "roommate">("house");
-
   return (
-    <main className="min-h-screen bg-[#faf9f6] text-[#183b2c]">
-      {/* Navbar */}
-      <Navbar />
+    <main className="min-h-screen bg-[#fafafa] text-[#111111]">
+      <header className="sticky top-0 z-50 border-b border-black/[0.06] bg-[#fafafa]/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-10">
+          <Link
+            href="/"
+            className="text-xl font-bold tracking-[-0.04em]"
+          >
+            Baraka<span className="text-black/35">Nest</span>
+          </Link>
 
-      {/* Hero */}
-      <section className="mx-auto grid max-w-7xl gap-12 px-6 pb-20 pt-10 md:grid-cols-2 md:items-center md:pt-20">
-        <div>
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#dce6dc] bg-white px-4 py-2 text-xs font-semibold text-[#426c50]">
-            <span className="h-2 w-2 rounded-full bg-[#e58b45]" />
-            MADE FOR CAMPUS LIVING
-          </div>
+          <nav className="hidden items-center gap-8 md:flex">
+            <Link
+              href="/houses"
+              className="text-sm font-medium text-black/55 transition hover:text-black"
+            >
+              Houses
+            </Link>
 
-          <h1 className="max-w-xl text-5xl font-bold leading-[1.08] tracking-tight sm:text-6xl">
-            Find your space.
-            <span className="text-[#e58b45]"> Find your people.</span>
-          </h1>
+            <Link
+              href="/roommates"
+              className="text-sm font-medium text-black/55 transition hover:text-black"
+            >
+              Roommates
+            </Link>
 
-          <p className="mt-6 max-w-lg text-base leading-7 text-[#68776d] sm:text-lg">
-            Your next home, roommate, and campus community — all in one place.
-            Less stress searching, more time living.
-          </p>
+            <Link
+              href="/login"
+              className="text-sm font-medium text-black/55 transition hover:text-black"
+            >
+              Log in
+            </Link>
 
-          {/* Search panel */}
-          <div className="mt-9 rounded-3xl border border-[#e8e9e2] bg-white p-4 shadow-[0_18px_55px_rgba(24,59,44,0.08)] sm:p-5">
-            <div className="mb-5 flex rounded-full bg-[#f2f4ef] p-1">
-              <button
-                onClick={() => setMode("house")}
-                className={`flex-1 rounded-full px-3 py-3 text-sm font-semibold transition ${
-                  mode === "house"
-                    ? "bg-[#183b2c] text-white shadow"
-                    : "text-[#68776d]"
-                }`}
+            <Link
+              href="/register"
+              className="rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black/80"
+            >
+              Get started
+            </Link>
+          </nav>
+
+          <Link
+            href="/register"
+            className="rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white md:hidden"
+          >
+            Get started
+          </Link>
+        </div>
+      </header>
+
+      <section className="relative overflow-hidden">
+        <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-black/[0.025] blur-3xl" />
+
+        <div className="relative mx-auto grid max-w-7xl gap-16 px-6 pb-24 pt-20 sm:px-8 sm:pt-28 lg:grid-cols-[1.15fr_0.85fr] lg:px-10 lg:pb-32 lg:pt-32">
+          <div className="flex flex-col justify-center">
+            <div className="mb-7 inline-flex w-fit items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium text-black/55 shadow-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-black" />
+              Built for students across Kenya
+            </div>
+
+            <h1 className="max-w-4xl text-5xl font-semibold leading-[0.98] tracking-[-0.055em] sm:text-6xl lg:text-7xl xl:text-[82px]">
+              Find a place
+              <br />
+              <span className="text-black/35">that feels right.</span>
+            </h1>
+
+            <p className="mt-8 max-w-xl text-base leading-7 text-black/50 sm:text-lg">
+              Baraka Nest brings student houses and roommates together in one
+              simple place — so finding where you belong does not have to be
+              stressful.
+            </p>
+
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/houses"
+                className="group flex items-center justify-center gap-3 rounded-full bg-black px-7 py-4 text-sm font-semibold text-white transition hover:bg-black/85"
               >
-                Find a house
-              </button>
+                Explore houses
+                <span className="transition-transform group-hover:translate-x-1">
+                  →
+                </span>
+              </Link>
 
-              <button
-                onClick={() => setMode("roommate")}
-                className={`flex-1 rounded-full px-3 py-3 text-sm font-semibold transition ${
-                  mode === "roommate"
-                    ? "bg-[#183b2c] text-white shadow"
-                    : "text-[#68776d]"
-                }`}
+              <Link
+                href="/roommates"
+                className="flex items-center justify-center rounded-full border border-black/10 bg-white px-7 py-4 text-sm font-semibold transition hover:border-black/20 hover:bg-black/[0.02]"
               >
                 Find a roommate
-              </button>
+              </Link>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="rounded-2xl border border-[#e8e9e2] px-4 py-3">
-                <span className="block text-xs font-semibold text-[#89948b]">
-                  WHERE?
-                </span>
+            <div className="mt-10 flex items-center gap-4 text-xs text-black/35">
+              <div className="flex -space-x-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#fafafa] bg-black text-[10px] font-semibold text-white">
+                  BN
+                </div>
 
-                <input
-                  type="text"
-                  placeholder="e.g. Juja, Kahawa..."
-                  className="mt-2 w-full bg-transparent text-sm font-medium text-[#183b2c] outline-none placeholder:text-[#a2aaa3]"
-                />
-              </label>
-
-              <label className="rounded-2xl border border-[#e8e9e2] px-4 py-3">
-                <span className="block text-xs font-semibold text-[#89948b]">
-                  {mode === "house" ? "MONTHLY BUDGET" : "YOUR BUDGET"}
-                </span>
-
-                <select className="mt-2 w-full bg-transparent text-sm font-medium text-[#183b2c] outline-none">
-                  <option value="">Select budget</option>
-                  <option>KSh 3,000 – 5,000</option>
-                  <option>KSh 5,000 – 8,000</option>
-                  <option>KSh 8,000 – 12,000</option>
-                  <option>KSh 12,000+</option>
-                </select>
-              </label>
-            </div>
-
-            <button className="mt-4 w-full rounded-2xl bg-[#e58b45] px-5 py-4 text-sm font-bold text-white transition hover:bg-[#cf7430]">
-              {mode === "house"
-                ? "Search houses →"
-                : "Find my roommate →"}
-            </button>
-          </div>
-
-          <p className="mt-5 text-xs text-[#89948b]">
-            Built for students. Designed for better living.
-          </p>
-        </div>
-
-        {/* Visual panel */}
-        <div className="relative">
-          <div className="absolute -left-5 top-10 h-28 w-28 rounded-full bg-[#e8d7b8] blur-2xl" />
-
-          <div className="relative overflow-hidden rounded-[2rem] bg-[#dfe8dc] p-4 sm:p-6">
-            <div className="flex min-h-[390px] flex-col justify-between rounded-[1.5rem] bg-[#c8d9c5] p-6 sm:min-h-[470px] sm:p-8">
-              <div className="flex items-start justify-between">
-                <span className="rounded-full bg-white/80 px-4 py-2 text-xs font-semibold">
-                  YOUR NEXT CHAPTER
-                </span>
-
-                <span className="text-2xl">✳</span>
-              </div>
-
-              <div className="mx-auto w-full max-w-sm">
-                <div className="rounded-t-[7rem] rounded-b-3xl bg-[#f4eee2] p-5 pb-0 shadow-xl">
-                  <div className="flex h-52 items-end justify-center overflow-hidden rounded-t-[5rem] bg-[#a9bea7] sm:h-64">
-                    <div className="relative flex h-4/5 w-4/5 items-end justify-center rounded-t-[5rem] bg-[#e8d6b9]">
-                      <div className="absolute left-5 top-8 h-16 w-16 rounded-full bg-[#f8f4eb]" />
-                      <div className="absolute right-5 top-12 h-24 w-12 rounded-full bg-[#f8f4eb]" />
-                      <div className="h-3/5 w-3/5 rounded-t-3xl bg-[#183b2c]" />
-                    </div>
-                  </div>
-
-                  <div className="py-5 text-center">
-                    <p className="text-sm font-bold">
-                      A place to belong.
-                    </p>
-
-                    <p className="mt-1 text-xs text-[#68776d]">
-                      Your campus life, made easier.
-                    </p>
-                  </div>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#fafafa] bg-black/15 text-[10px] font-semibold">
+                  +
                 </div>
               </div>
 
-              <div className="flex items-end justify-between">
-                <div className="rounded-2xl bg-white/85 px-4 py-3 shadow-sm">
-                  <p className="text-xs text-[#68776d]">
-                    A better way to
-                  </p>
-
-                  <p className="text-sm font-bold">
-                    Live student life
-                  </p>
-                </div>
-
-                <span className="text-3xl">⌂</span>
-              </div>
+              <span>Designed around student life</span>
             </div>
           </div>
 
-          <div className="absolute -bottom-5 -left-3 rounded-2xl bg-white px-5 py-4 shadow-xl sm:left-0">
-            <p className="text-xs text-[#89948b]">
-              THE RIGHT FIT
-            </p>
+          <div className="relative hidden min-h-[520px] lg:block">
+            <div className="absolute right-0 top-8 h-[470px] w-[390px] overflow-hidden rounded-[36px] bg-[#111111] shadow-2xl">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-black" />
 
-            <p className="mt-1 text-sm font-bold">
-              Home meets community.
-            </p>
+              <div className="relative flex h-full flex-col justify-between p-8">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-white/45">
+                    BARAKA NEST
+                  </span>
+
+                  <span className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] text-white/45">
+                    01
+                  </span>
+                </div>
+
+                <div>
+                  <p className="text-sm text-white/40">Your next home</p>
+
+                  <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white">
+                    Starts here.
+                  </h2>
+
+                  <div className="mt-8 h-px w-full bg-white/10" />
+
+                  <div className="mt-5 flex items-center justify-between">
+                    <span className="text-xs text-white/35">Houses</span>
+
+                    <span className="text-xs text-white/70">
+                      Explore →
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute bottom-10 left-0 w-64 rounded-3xl border border-black/10 bg-white p-5 shadow-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-black/40">
+                  DISCOVER
+                </span>
+
+                <span className="text-xs text-black/30">→</span>
+              </div>
+
+              <p className="mt-5 text-lg font-semibold tracking-tight">
+                Your ideal roommate might be closer than you think.
+              </p>
+
+              <div className="mt-5 h-1 w-16 rounded-full bg-black" />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Benefits */}
-      <section
-        id="explore"
-        className="border-y border-[#e9e9e2] bg-white"
-      >
-        <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 sm:grid-cols-3">
-          <div>
-            <p className="text-2xl">⌂</p>
+      <section className="border-y border-black/[0.07] bg-white">
+        <div className="mx-auto grid max-w-7xl md:grid-cols-3">
+          {features.map((feature, index) => (
+            <div
+              key={feature.number}
+              className={`px-6 py-10 sm:px-8 lg:px-10 ${
+                index !== 0
+                  ? "border-t border-black/[0.07] md:border-l md:border-t-0"
+                  : ""
+              }`}
+            >
+              <span className="text-xs font-semibold text-black/25">
+                {feature.number}
+              </span>
 
-            <h3 className="mt-3 font-bold">
-              Find a place
-            </h3>
+              <h3 className="mt-5 text-xl font-semibold tracking-tight">
+                {feature.title}
+              </h3>
 
-            <p className="mt-2 text-sm leading-6 text-[#758078]">
-              Explore student-friendly housing around your campus.
-            </p>
-          </div>
-
-          <div>
-            <p className="text-2xl">♧</p>
-
-            <h3 className="mt-3 font-bold">
-              Meet your people
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-[#758078]">
-              Connect with potential roommates who fit your lifestyle.
-            </p>
-          </div>
-
-          <div>
-            <p className="text-2xl">♡</p>
-
-            <h3 className="mt-3 font-bold">
-              Feel at home
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-[#758078]">
-              Make smarter housing decisions with useful local information.
-            </p>
-          </div>
+              <p className="mt-3 max-w-sm text-sm leading-6 text-black/45">
+                {feature.description}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Bottom CTA */}
-      <section
-        id="how-it-works"
-        className="mx-auto max-w-7xl px-6 py-20 text-center"
-      >
-        <p className="text-xs font-bold tracking-[0.2em] text-[#e58b45]">
-          YOUR CAMPUS. YOUR COMMUNITY.
-        </p>
-
-        <h2 className="mx-auto mt-4 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
-          Student living should feel like a fresh start.
-        </h2>
-
-        <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-[#758078]">
-          We’re building a simpler way for students across Kenya to find
-          housing and people they can call their own.
-        </p>
-      </section>
-
-      {/* Footer */}
-      <footer
-        id="about"
-        className="border-t border-[#e9e9e2] px-6 py-7"
-      >
-        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 text-xs text-[#89948b] sm:flex-row">
-          <p>
-            © 2026 Baraka Nest. Built for student living.
+      <section className="mx-auto max-w-7xl px-6 py-24 sm:px-8 lg:px-10 lg:py-32">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/35">
+            Explore
           </p>
 
-          <p>
-            Find your space. Find your people.
+          <h2 className="mt-5 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
+            Everything you need to
+            <br />
+            settle in.
+          </h2>
+
+          <p className="mt-6 text-base leading-7 text-black/45">
+            Whether you are moving closer to campus or looking for someone to
+            share the journey with, Baraka Nest keeps the process simple.
           </p>
         </div>
+
+        <div className="mt-14 grid gap-5 md:grid-cols-2">
+          <Link
+            href="/houses"
+            className="group relative min-h-[360px] overflow-hidden rounded-[32px] bg-[#111111] p-8 text-white transition hover:-translate-y-1 hover:shadow-2xl"
+          >
+            <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/[0.05] blur-3xl" />
+
+            <div className="relative flex h-full flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-white/40">
+                  HOMES
+                </span>
+
+                <span className="text-xl text-white/40 transition-transform group-hover:translate-x-1">
+                  →
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-3xl font-semibold tracking-[-0.04em]">
+                  Find your next home.
+                </h3>
+
+                <p className="mt-4 max-w-md text-sm leading-6 text-white/45">
+                  Browse houses designed around student budgets, locations and
+                  everyday convenience.
+                </p>
+              </div>
+            </div>
+          </Link>
+
+          <Link
+            href="/roommates"
+            className="group relative min-h-[360px] overflow-hidden rounded-[32px] border border-black/10 bg-white p-8 transition hover:-translate-y-1 hover:shadow-xl"
+          >
+            <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-black/[0.035] blur-3xl" />
+
+            <div className="relative flex h-full flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-black/35">
+                  ROOMMATES
+                </span>
+
+                <span className="text-xl text-black/30 transition-transform group-hover:translate-x-1">
+                  →
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-3xl font-semibold tracking-[-0.04em]">
+                  Find your people.
+                </h3>
+
+                <p className="mt-4 max-w-md text-sm leading-6 text-black/45">
+                  Meet students looking for roommates and find a setup that
+                  actually works for you.
+                </p>
+              </div>
+            </div>
+          </Link>
+        </div>
+      </section>
+
+      <section className="px-6 pb-10 sm:px-8 lg:px-10">
+        <div className="mx-auto max-w-7xl overflow-hidden rounded-[36px] bg-[#111111] px-7 py-16 text-white sm:px-12 lg:px-16 lg:py-20">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/35">
+              Your next chapter
+            </p>
+
+            <h2 className="mt-6 text-4xl font-semibold leading-tight tracking-[-0.045em] sm:text-5xl">
+              Ready to find where
+              <br />
+              you belong?
+            </h2>
+
+            <div className="mt-9">
+              <Link
+                href="/register"
+                className="inline-flex rounded-full bg-white px-7 py-4 text-sm font-semibold text-black transition hover:bg-white/85"
+              >
+                Create your account
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-10 text-sm text-black/35 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
+        <span className="font-semibold text-black">
+          Baraka<span className="text-black/30">Nest</span>
+        </span>
+
+        <div className="flex gap-6">
+          <Link href="/houses" className="transition hover:text-black">
+            Houses
+          </Link>
+
+          <Link href="/roommates" className="transition hover:text-black">
+            Roommates
+          </Link>
+
+          <Link href="/login" className="transition hover:text-black">
+            Log in
+          </Link>
+        </div>
+
+        <span>© {new Date().getFullYear()} Baraka Nest</span>
       </footer>
     </main>
   );
