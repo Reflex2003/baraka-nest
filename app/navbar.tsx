@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-
-type Language = "English" | "Swahili" | "Sheng";
+import { useLanguage } from "./language-context";
 
 const translations = {
   English: {
@@ -33,7 +31,7 @@ const translations = {
 };
 
 export default function Navbar() {
-  const [language, setLanguage] = useState<Language>("English");
+  const { language, setLanguage } = useLanguage();
 
   const t = translations[language];
 
@@ -69,7 +67,7 @@ export default function Navbar() {
           id="language"
           value={language}
           onChange={(event) =>
-            setLanguage(event.target.value as Language)
+            setLanguage(event.target.value as typeof language)
           }
           aria-label={t.language}
           className="block rounded-full border border-[#e3e7df] bg-white px-3 py-2.5 text-sm font-semibold text-[#183b2c] outline-none focus:border-[#183b2c]"
