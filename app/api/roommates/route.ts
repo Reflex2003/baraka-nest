@@ -27,27 +27,71 @@ function createId() {
   return crypto.randomUUID();
 }
 
-export async function GET() {
-  const profiles = getAllRoommateProfiles() as RoommateProfileRow[];
+export async function GET(request: Request) {
+  try {
+    const session = await auth.api.getSession({
+      headers: request.headers,
+    });
 
-  const formattedProfiles = profiles.map((profile) => ({
-    id: profile.id,
-    username: profile.username,
-    name: profile.name,
-    age: profile.age,
-    school: profile.school,
-    location: profile.location,
-    budget: profile.budget,
-    moveIn: profile.move_in,
-    preference: profile.preference,
-    about: profile.about,
-    interests: JSON.parse(profile.interests) as string[],
-    lifestyle: JSON.parse(profile.lifestyle) as string[],
-  }));
+    if (session?.user) {
+      const profile = getRoommateProfileByUserId(session.user.id);
 
-  return Response.json({
-    profiles: formattedProfiles,
-  });
+      if (!profile) {
+        return Response.json({
+          profile: null,
+        });
+      }
+
+      const formattedProfile = {
+        id: profile.id,
+        username: profile.username,
+        name: profile.name,
+        age: profile.age,
+        school: profile.school,
+        location: profile.location,
+        budget: profile.budget,
+        moveIn: profile.move_in,
+        preference: profile.preference,
+        about: profile.about,
+        interests: JSON.parse(profile.interests) as string[],
+        lifestyle: JSON.parse(profile.lifestyle) as string[],
+      };
+
+      return Response.json({
+        profile: formattedProfile,
+      });
+    }
+
+    const profiles = getAllRoommateProfiles() as RoommateProfileRow[];
+
+    const formattedProfiles = profiles.map((profile) => ({
+      id: profile.id,
+      username: profile.username,
+      name: profile.name,
+      age: profile.age,
+      school: profile.school,
+      location: profile.location,
+      budget: profile.budget,
+      moveIn: profile.move_in,
+      preference: profile.preference,
+      about: profile.about,
+      interests: JSON.parse(profile.interests) as string[],
+      lifestyle: JSON.parse(profile.lifestyle) as string[],
+    }));
+
+    return Response.json({
+      profiles: formattedProfiles,
+    });
+  } catch (error) {
+    console.error("Roommate profiles error:", error);
+
+    return Response.json(
+      {
+        error: "Something went wrong while loading roommate profiles.",
+      },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(request: Request) {
