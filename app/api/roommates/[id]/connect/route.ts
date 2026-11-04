@@ -36,9 +36,19 @@ export async function POST(
     }
 
     const { id } = await params;
+    const profileId = String(id ?? "").trim();
+
+    if (!profileId || profileId.length > 100) {
+      return Response.json(
+        {
+          error: "Invalid roommate profile.",
+        },
+        { status: 400 },
+      );
+    }
 
     const receiverProfile =
-      getRoommateProfileById(id) as ReceiverProfile | undefined;
+      getRoommateProfileById(profileId) as ReceiverProfile | undefined;
 
     if (!receiverProfile) {
       return Response.json(
@@ -77,7 +87,12 @@ export async function POST(
     if (existingRequest) {
       return Response.json(
         {
-          error: "You have already sent a connection request.",
+          error:
+            existingRequest.status === "accepted"
+              ? "You are already connected with this student."
+              : existingRequest.status === "pending"
+                ? "A connection request already exists between you."
+                : "A previous connection request already exists between you.",
           status: existingRequest.status,
         },
         { status: 409 },
@@ -86,34 +101,57 @@ export async function POST(
 
     const connectionId = crypto.randomUUID();
 
-    roommateDb
-      .prepare(
-        `
-          INSERT INTO connection_request (
-            id,
-            sender_user_id,
-            sender_profile_id,
-            receiver_user_id,
-            receiver_profile_id,
-            status
-          )
-          VALUES (
-            @id,
-            @senderUserId,
-            @senderProfileId,
-            @receiverUserId,
-            @receiverProfileId,
-            'pending'
-          )
-        `,
-      )
-      .run({
-        id: connectionId,
-        senderUserId: session.user.id,
-        senderProfileId: senderProfile.id,
-        receiverUserId: receiverProfile.user_id,
-        receiverProfileId: receiverProfile.id,
-      });
+    try {
+      roommateDb
+        .prepare(
+          `
+            INSERT INTO connection_request (
+              id,
+              sender_user_id,
+              sender_profile_id,
+              receiver_user_id,
+              receiver_profile_id,
+              status
+            )
+            VALUES (
+              @id,
+              @senderUserId,
+              @senderProfileId,
+              @receiverUserId,
+              @receiverProfileId,
+              'pending'
+            )
+          `,
+        )
+        .run({
+          id: connectionId,
+          senderUserId: session.user.id,
+          senderProfileId: senderProfile.id,
+          receiverUserId: receiverProfile.user_id,
+          receiverProfileId: receiverProfile.id,
+        });
+    } catch (insertError) {
+      const message =
+        insertError instanceof Error
+          ? insertError.message
+          : "";
+
+      if (
+        message.includes("UNIQUE") ||
+        message.includes("unique") ||
+        message.includes("constraint")
+      ) {
+        return Response.json(
+          {
+            error:
+              "A connection request already exists between you.",
+          },
+          { status: 409 },
+        );
+      }
+
+      throw insertError;
+    }
 
     return Response.json(
       {
@@ -128,7 +166,8 @@ export async function POST(
 
     return Response.json(
       {
-        error: "Something went wrong while sending the connection request.",
+        error:
+          "Something went wrong while sending the connection request.",
       },
       { status: 500 },
     );

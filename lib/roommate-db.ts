@@ -37,6 +37,18 @@ roommateDb.exec(`
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(sender_user_id, receiver_user_id)
   );
+
+  CREATE INDEX IF NOT EXISTS idx_roommate_profile_user_id
+    ON roommate_profile(user_id);
+
+  CREATE INDEX IF NOT EXISTS idx_connection_sender
+    ON connection_request(sender_user_id);
+
+  CREATE INDEX IF NOT EXISTS idx_connection_receiver
+    ON connection_request(receiver_user_id);
+
+  CREATE INDEX IF NOT EXISTS idx_connection_status
+    ON connection_request(status);
 `);
 
 export function getRoommateProfileByUserId(userId: string) {
@@ -102,11 +114,26 @@ export function getConnectionRequest(
       `
         SELECT *
         FROM connection_request
-        WHERE sender_user_id = ?
-          AND receiver_user_id = ?
+        WHERE
+          (
+            sender_user_id = ?
+            AND receiver_user_id = ?
+          )
+          OR
+          (
+            sender_user_id = ?
+            AND receiver_user_id = ?
+          )
+        ORDER BY created_at DESC
+        LIMIT 1
       `,
     )
-    .get(senderUserId, receiverUserId);
+    .get(
+      senderUserId,
+      receiverUserId,
+      receiverUserId,
+      senderUserId,
+    );
 }
 
 export function createConnectionRequest(data: {
@@ -116,6 +143,15 @@ export function createConnectionRequest(data: {
   receiverUserId: string;
   receiverProfileId: string;
 }) {
+  const existing = getConnectionRequest(
+    data.senderUserId,
+    data.receiverUserId,
+  );
+
+  if (existing) {
+    throw new Error("CONNECTION_ALREADY_EXISTS");
+  }
+
   return roommateDb
     .prepare(
       `

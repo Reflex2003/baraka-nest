@@ -2,7 +2,19 @@ import { auth } from "@/auth";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    let body: Record<string, unknown>;
+
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        {
+          success: false,
+          message: "Invalid request body.",
+        },
+        { status: 400 },
+      );
+    }
 
     const username = String(body.username ?? "").trim().toLowerCase();
     const password = String(body.password ?? "");
@@ -14,6 +26,26 @@ export async function POST(request: Request) {
           message: "Username and password are required.",
         },
         { status: 400 },
+      );
+    }
+
+    if (username.length > 20) {
+      return Response.json(
+        {
+          success: false,
+          message: "Invalid username or password.",
+        },
+        { status: 401 },
+      );
+    }
+
+    if (password.length > 200) {
+      return Response.json(
+        {
+          success: false,
+          message: "Invalid username or password.",
+        },
+        { status: 401 },
       );
     }
 
