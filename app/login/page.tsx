@@ -24,6 +24,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           username,
           password,
@@ -37,7 +38,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");

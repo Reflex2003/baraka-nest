@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { useLanguage } from "./language-context";
 
 const translations = {
@@ -50,15 +51,34 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { language, setLanguage } = useLanguage();
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const t = translations[language];
 
   async function handleLogout() {
+    if (loggingOut) {
+      return;
+    }
+
+    setLoggingOut(true);
+
     try {
-      await fetch("/api/auth/sign-out", {
+      const response = await fetch("/api/auth/sign-out", {
         method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
       });
+
+      if (!response.ok) {
+        console.error("Logout failed:", response.status);
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
     } finally {
-      router.push("/login");
+      router.replace("/login");
       router.refresh();
     }
   }
@@ -125,9 +145,10 @@ export default function Navbar() {
           <button
             type="button"
             onClick={handleLogout}
-            className="hidden rounded-full px-4 py-2.5 text-sm font-semibold text-[#647067] transition hover:bg-[#f5f7f3] hover:text-[#183b2c] md:block"
+            disabled={loggingOut}
+            className="hidden rounded-full px-4 py-2.5 text-sm font-semibold text-[#647067] transition hover:bg-[#f5f7f3] hover:text-[#183b2c] disabled:cursor-not-allowed disabled:opacity-50 md:block"
           >
-            {t.logout}
+            {loggingOut ? "..." : t.logout}
           </button>
         </div>
       </div>
@@ -157,9 +178,10 @@ export default function Navbar() {
         <button
           type="button"
           onClick={handleLogout}
-          className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold text-[#647067]"
+          disabled={loggingOut}
+          className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold text-[#647067] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {t.logout}
+          {loggingOut ? "..." : t.logout}
         </button>
       </div>
     </nav>

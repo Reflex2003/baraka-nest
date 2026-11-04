@@ -15,14 +15,40 @@ type RoommateProfileRow = {
   lifestyle: string;
 };
 
+function parseJsonArray(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(
+      (item): item is string => typeof item === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
+    const profileId = String(id ?? "").trim();
 
-    const profile = getRoommateProfileById(id) as
+    if (!profileId || profileId.length > 100) {
+      return Response.json(
+        {
+          error: "Invalid roommate profile.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const profile = getRoommateProfileById(profileId) as
       | RoommateProfileRow
       | undefined;
 
@@ -47,8 +73,8 @@ export async function GET(
         moveIn: profile.move_in,
         preference: profile.preference,
         about: profile.about,
-        interests: JSON.parse(profile.interests) as string[],
-        lifestyle: JSON.parse(profile.lifestyle) as string[],
+        interests: parseJsonArray(profile.interests),
+        lifestyle: parseJsonArray(profile.lifestyle),
       },
     });
   } catch (error) {

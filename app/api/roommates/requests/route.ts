@@ -9,6 +9,7 @@ type RequestRow = {
   receiver_profile_id: string;
   status: string;
   created_at: string;
+  updated_at?: string;
   sender_name: string;
   sender_username: string;
   sender_school: string;
@@ -20,6 +21,30 @@ type RequestRow = {
   receiver_location: string;
   receiver_budget: number;
 };
+
+function formatRequest(item: RequestRow) {
+  return {
+    id: item.id,
+    status: item.status,
+    createdAt: item.created_at,
+    sender: {
+      id: item.sender_profile_id,
+      name: item.sender_name,
+      username: item.sender_username,
+      school: item.sender_school,
+      location: item.sender_location,
+      budget: item.sender_budget,
+    },
+    receiver: {
+      id: item.receiver_profile_id,
+      name: item.receiver_name,
+      username: item.receiver_username,
+      school: item.receiver_school,
+      location: item.receiver_location,
+      budget: item.receiver_budget,
+    },
+  };
+}
 
 export async function GET(request: Request) {
   try {
@@ -49,6 +74,7 @@ export async function GET(request: Request) {
             cr.receiver_profile_id,
             cr.status,
             cr.created_at,
+            cr.updated_at,
             sender.name AS sender_name,
             sender.username AS sender_username,
             sender.school AS sender_school,
@@ -81,6 +107,7 @@ export async function GET(request: Request) {
             cr.receiver_profile_id,
             cr.status,
             cr.created_at,
+            cr.updated_at,
             sender.name AS sender_name,
             sender.username AS sender_username,
             sender.school AS sender_school,
@@ -113,6 +140,7 @@ export async function GET(request: Request) {
             cr.receiver_profile_id,
             cr.status,
             cr.created_at,
+            cr.updated_at,
             sender.name AS sender_name,
             sender.username AS sender_username,
             sender.school AS sender_school,
@@ -139,30 +167,9 @@ export async function GET(request: Request) {
       )
       .all(userId, userId) as RequestRow[];
 
-    const formatRequest = (item: RequestRow) => ({
-      id: item.id,
-      status: item.status,
-      createdAt: item.created_at,
-      sender: {
-        id: item.sender_profile_id,
-        name: item.sender_name,
-        username: item.sender_username,
-        school: item.sender_school,
-        location: item.sender_location,
-        budget: item.sender_budget,
-      },
-      receiver: {
-        id: item.receiver_profile_id,
-        name: item.receiver_name,
-        username: item.receiver_username,
-        school: item.receiver_school,
-        location: item.receiver_location,
-        budget: item.receiver_budget,
-      },
-    });
-
     const formattedConnections = connections.map((item) => {
       const isSender = item.sender_user_id === userId;
+
       const person = isSender
         ? {
             id: item.receiver_profile_id,
@@ -183,7 +190,7 @@ export async function GET(request: Request) {
 
       return {
         id: item.id,
-        connectedAt: item.created_at,
+        connectedAt: item.updated_at ?? item.created_at,
         person,
       };
     });
@@ -220,15 +227,26 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const body = await request.json();
+    let body: Record<string, unknown>;
+
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        {
+          error: "Invalid request body.",
+        },
+        { status: 400 },
+      );
+    }
 
     const requestId = String(body.requestId ?? "").trim();
     const action = String(body.action ?? "").trim().toLowerCase();
 
-    if (!requestId || !action) {
+    if (!requestId || requestId.length > 100) {
       return Response.json(
         {
-          error: "Request ID and action are required.",
+          error: "A valid request ID is required.",
         },
         { status: 400 },
       );
@@ -292,21 +310,36 @@ export async function PATCH(request: Request) {
     }
 
     const newStatus =
-      action === "accept"
-        ? "accepted"
-        : "declined";
+      action === "accept" ? "accepted" : "declined";
 
-    roommateDb
+    const result = roommateDb
       .prepare(
         `
           UPDATE connection_request
           SET
             status = ?,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
+          WHERE
+            id = ?
+            AND receiver_user_id = ?
+            AND status = 'pending'
         `,
       )
-      .run(newStatus, requestId);
+      .run(
+        newStatus,
+        requestId,
+        session.user.id,
+      );
+
+    if (result.changes !== 1) {
+      return Response.json(
+        {
+          error:
+            "This connection request was already handled or is no longer available.",
+        },
+        { status: 409 },
+      );
+    }
 
     return Response.json({
       success: true,
