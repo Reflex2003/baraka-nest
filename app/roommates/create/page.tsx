@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Navbar from "../../navbar";
+import { useLanguage, type Language } from "../../language-context";
 
 const interestOptions = [
   "Football",
@@ -41,8 +42,198 @@ const locationOptions = [
   "Mombasa",
 ];
 
+const translations = {
+  English: {
+    eyebrow: "Baraka Nest · Roommates",
+    title: "Create your",
+    titleMuted: "roommate profile.",
+    intro:
+      "Tell students a little about yourself, your budget and the kind of home you want. The right roommate could be one profile away.",
+    basic: "01 · Basic information",
+    basicTitle: "Start with the basics.",
+    fullName: "Full name",
+    yourName: "Your name",
+    age: "Age",
+    school: "School / University",
+    yourSchool: "Your school",
+    housing: "02 · Housing preferences",
+    housingTitle: "What are you looking for?",
+    preferredArea: "Preferred area",
+    selectArea: "Select an area",
+    budget: "Monthly roommate budget",
+    moveIn: "Move-in time",
+    preference: "Roommate preference",
+    lifestyleSection: "03 · How you live",
+    lifestyleTitle: "Help people understand your lifestyle.",
+    lifestyleText: "Select everything that describes you.",
+    interestsSection: "04 · Your interests",
+    interestsTitle: "What are you into?",
+    aboutSection: "05 · About you",
+    aboutTitle: "Say a little more.",
+    aboutPlaceholder:
+      "Tell potential roommates about yourself, your routine, what kind of home you want and anything else that matters...",
+    profileNote:
+      "Your profile will only be created after you submit this form.",
+    creating: "Creating profile...",
+    create: "Create Profile",
+    browse: "Browse roommates →",
+    tagline: "Better student living, together.",
+    required: "Please complete all required profile details.",
+    createdNoId:
+      "Profile was created but no profile ID was returned.",
+    submitError:
+      "Something went wrong while creating your profile.",
+  },
+
+  Swahili: {
+    eyebrow: "Baraka Nest · Roommates",
+    title: "Tengeneza",
+    titleMuted: "profile yako ya roommate.",
+    intro:
+      "Waambie wanafunzi kidogo kukuhusu, budget yako na aina ya nyumba unayotaka. Roommate anayekufaa anaweza kuwa profile moja tu mbali.",
+    basic: "01 · Taarifa za msingi",
+    basicTitle: "Anza na taarifa muhimu.",
+    fullName: "Jina kamili",
+    yourName: "Jina lako",
+    age: "Umri",
+    school: "Chuo / University",
+    yourSchool: "Jina la chuo chako",
+    housing: "02 · Mapendeleo ya makazi",
+    housingTitle: "Unatafuta nini?",
+    preferredArea: "Eneo unalopendelea",
+    selectArea: "Chagua eneo",
+    budget: "Budget ya mwezi ya roommate",
+    moveIn: "Muda wa kuhamia",
+    preference: "Unapendelea roommate wa aina gani?",
+    lifestyleSection: "03 · Maisha yako",
+    lifestyleTitle: "Wasaidie watu kuelewa lifestyle yako.",
+    lifestyleText: "Chagua kila kitu kinachokuelezea.",
+    interestsSection: "04 · Unachopenda",
+    interestsTitle: "Unapenda kufanya nini?",
+    aboutSection: "05 · Kukuhusu",
+    aboutTitle: "Eleza kidogo zaidi.",
+    aboutPlaceholder:
+      "Waambie roommates watarajiwa kukuhusu, routine yako, aina ya nyumba unayotaka na kitu kingine muhimu...",
+    profileNote:
+      "Profile yako itatengenezwa baada ya kutuma form hii.",
+    creating: "Inatengeneza profile...",
+    create: "Tengeneza Profile",
+    browse: "Tafuta roommates →",
+    tagline: "Maisha bora ya wanafunzi, pamoja.",
+    required: "Tafadhali jaza taarifa zote muhimu za profile.",
+    createdNoId:
+      "Profile imetengenezwa lakini profile ID haikupatikana.",
+    submitError:
+      "Kuna tatizo wakati wa kutengeneza profile yako.",
+  },
+
+  Sheng: {
+    eyebrow: "Baraka Nest · Roommates",
+    title: "Tengeneza",
+    titleMuted: "roommate profile yako.",
+    intro:
+      "Waambie wasee kidogo kukuhusu, budget yako na type ya place unadai. Roommate wako anaweza kuwa profile moja tu away.",
+    basic: "01 · Basic info",
+    basicTitle: "Anza na basics.",
+    fullName: "Full name",
+    yourName: "Name yako",
+    age: "Age",
+    school: "School / Campus",
+    yourSchool: "Campus yako",
+    housing: "02 · Housing preferences",
+    housingTitle: "Unadai nini?",
+    preferredArea: "Area unadai",
+    selectArea: "Chagua area",
+    budget: "Roommate budget ya mwezi",
+    moveIn: "Move-in time",
+    preference: "Roommate preference",
+    lifestyleSection: "03 · Vile unaishi",
+    lifestyleTitle: "Wasaidie wasee wajue lifestyle yako.",
+    lifestyleText: "Select kila kitu inakurepresent.",
+    interestsSection: "04 · Vitu unapenda",
+    interestsTitle: "Unahustle na nini?",
+    aboutSection: "05 · Kukuhusu",
+    aboutTitle: "Sema kidogo zaidi.",
+    aboutPlaceholder:
+      "Waambie potential roommates kukuhusu, routine yako, type ya home unadai na anything muhimu...",
+    profileNote:
+      "Profile yako itacreateiwa baada ya kusubmit hii form.",
+    creating: "Inacreate profile...",
+    create: "Create Profile",
+    browse: "Saka roommates →",
+    tagline: "Student life better, pamoja.",
+    required: "Jaza details zote muhimu za profile.",
+    createdNoId:
+      "Profile imecreate lakini profile ID haikurudi.",
+    submitError:
+      "Kuna noma imehappen wakati wa kucreate profile.",
+  },
+};
+
+const optionTranslations = {
+  Swahili: {
+    Football: "Mpira",
+    Gaming: "Gaming",
+    Music: "Muziki",
+    Movies: "Filamu",
+    Gym: "Gym",
+    Reading: "Kusoma",
+    Travel: "Kusafiri",
+    Cooking: "Kupika",
+    Tech: "Tech",
+    Photography: "Photography",
+    "Clean & organized": "Msafi na mpangilio",
+    "Quiet home": "Nyumba tulivu",
+    Social: "Mchangamfu",
+    "Early sleeper": "Analala mapema",
+    "Night owl": "Hulinda usiku",
+    "Study focused": "Anazingatia masomo",
+    "Occasional hangouts": "Hutoka mara kwa mara",
+    "Respectful of privacy": "Anaheshimu privacy",
+  },
+  Sheng: {
+    Football: "Ball",
+    Gaming: "Gaming",
+    Music: "Music",
+    Movies: "Movies",
+    Gym: "Gym",
+    Reading: "Kusoma",
+    Travel: "Travel",
+    Cooking: "Kupika",
+    Tech: "Tech",
+    Photography: "Photography",
+    "Clean & organized": "Clean na organized",
+    "Quiet home": "Home iko chill",
+    Social: "Social",
+    "Early sleeper": "Hulala mapema",
+    "Night owl": "Night owl",
+    "Study focused": "Ako focused na kusoma",
+    "Occasional hangouts": "Hutoka sometimes",
+    "Respectful of privacy": "Anaheshimu privacy",
+  },
+};
+
+function translateOption(
+  value: string,
+  language: Language,
+) {
+  if (language === "English") {
+    return value;
+  }
+
+  return (
+    optionTranslations[language]?.[
+      value as keyof (typeof optionTranslations)[typeof language]
+    ] ?? value
+  );
+}
+
 export default function CreateRoommatePage() {
   const router = useRouter();
+  const { language } = useLanguage();
+
+  const currentLanguage = language as Language;
+  const t = translations[currentLanguage];
 
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
@@ -69,7 +260,9 @@ export default function CreateRoommatePage() {
     );
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
     setError("");
 
@@ -83,7 +276,7 @@ export default function CreateRoommatePage() {
       !preference ||
       !about.trim()
     ) {
-      setError("Please complete all required profile details.");
+      setError(t.required);
       return;
     }
 
@@ -112,11 +305,13 @@ export default function CreateRoommatePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Could not create your profile.");
+        throw new Error(
+          data.error || t.submitError,
+        );
       }
 
       if (!data.id) {
-        throw new Error("Profile was created but no profile ID was returned.");
+        throw new Error(t.createdNoId);
       }
 
       router.push(`/roommates/${data.id}`);
@@ -125,7 +320,7 @@ export default function CreateRoommatePage() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Something went wrong while creating your profile.",
+          : t.submitError,
       );
     } finally {
       setLoading(false);
@@ -140,18 +335,19 @@ export default function CreateRoommatePage() {
         <section className="border-b border-black/10 bg-[#f7f7f5]">
           <div className="mx-auto max-w-5xl px-6 py-16 lg:px-8 lg:py-24">
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-black/40">
-              Baraka Nest · Roommates
+              {t.eyebrow}
             </p>
 
             <h1 className="mt-5 text-5xl font-black tracking-[-0.045em] sm:text-6xl lg:text-7xl">
-              Create your
+              {t.title}
               <br />
-              <span className="text-black/30">roommate profile.</span>
+              <span className="text-black/30">
+                {t.titleMuted}
+              </span>
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-black/55">
-              Tell students a little about yourself, your budget and the kind
-              of home you want. The right roommate could be one profile away.
+              {t.intro}
             </p>
           </div>
         </section>
@@ -163,36 +359,44 @@ export default function CreateRoommatePage() {
           <section>
             <div className="mb-8">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-black/35">
-                01 · Basic information
+                {t.basic}
               </p>
 
               <h2 className="mt-2 text-3xl font-black tracking-tight">
-                Start with the basics.
+                {t.basicTitle}
               </h2>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="text-sm font-bold">Full name</label>
+                <label className="text-sm font-bold">
+                  {t.fullName}
+                </label>
 
                 <input
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Your name"
+                  onChange={(event) =>
+                    setName(event.target.value)
+                  }
+                  placeholder={t.yourName}
                   required
                   className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none transition focus:border-black"
                 />
               </div>
 
               <div>
-                <label className="text-sm font-bold">Age</label>
+                <label className="text-sm font-bold">
+                  {t.age}
+                </label>
 
                 <input
                   type="number"
                   min="16"
                   max="100"
                   value={age}
-                  onChange={(event) => setAge(event.target.value)}
+                  onChange={(event) =>
+                    setAge(event.target.value)
+                  }
                   placeholder="22"
                   required
                   className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none transition focus:border-black"
@@ -201,13 +405,15 @@ export default function CreateRoommatePage() {
 
               <div>
                 <label className="text-sm font-bold">
-                  School / University
+                  {t.school}
                 </label>
 
                 <input
                   value={school}
-                  onChange={(event) => setSchool(event.target.value)}
-                  placeholder="Your school"
+                  onChange={(event) =>
+                    setSchool(event.target.value)
+                  }
+                  placeholder={t.yourSchool}
                   required
                   className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none transition focus:border-black"
                 />
@@ -220,25 +426,31 @@ export default function CreateRoommatePage() {
           <section>
             <div className="mb-8">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-black/35">
-                02 · Housing preferences
+                {t.housing}
               </p>
 
               <h2 className="mt-2 text-3xl font-black tracking-tight">
-                What are you looking for?
+                {t.housingTitle}
               </h2>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className="text-sm font-bold">Preferred area</label>
+                <label className="text-sm font-bold">
+                  {t.preferredArea}
+                </label>
 
                 <select
                   value={location}
-                  onChange={(event) => setLocation(event.target.value)}
+                  onChange={(event) =>
+                    setLocation(event.target.value)
+                  }
                   required
                   className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none transition focus:border-black"
                 >
-                  <option value="">Select an area</option>
+                  <option value="">
+                    {t.selectArea}
+                  </option>
 
                   {locationOptions.map((item) => (
                     <option key={item} value={item}>
@@ -250,7 +462,7 @@ export default function CreateRoommatePage() {
 
               <div>
                 <label className="text-sm font-bold">
-                  Monthly roommate budget
+                  {t.budget}
                 </label>
 
                 <div className="relative mt-2">
@@ -262,7 +474,9 @@ export default function CreateRoommatePage() {
                     type="number"
                     min="500"
                     value={budget}
-                    onChange={(event) => setBudget(event.target.value)}
+                    onChange={(event) =>
+                      setBudget(event.target.value)
+                    }
                     placeholder="8500"
                     required
                     className="w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-14 py-4 outline-none transition focus:border-black"
@@ -271,11 +485,15 @@ export default function CreateRoommatePage() {
               </div>
 
               <div>
-                <label className="text-sm font-bold">Move-in time</label>
+                <label className="text-sm font-bold">
+                  {t.moveIn}
+                </label>
 
                 <input
                   value={moveIn}
-                  onChange={(event) => setMoveIn(event.target.value)}
+                  onChange={(event) =>
+                    setMoveIn(event.target.value)
+                  }
                   placeholder="January 2027"
                   required
                   className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none transition focus:border-black"
@@ -284,12 +502,14 @@ export default function CreateRoommatePage() {
 
               <div>
                 <label className="text-sm font-bold">
-                  Roommate preference
+                  {t.preference}
                 </label>
 
                 <input
                   value={preference}
-                  onChange={(event) => setPreference(event.target.value)}
+                  onChange={(event) =>
+                    setPreference(event.target.value)
+                  }
                   placeholder="Quiet & clean"
                   required
                   className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none transition focus:border-black"
@@ -303,15 +523,15 @@ export default function CreateRoommatePage() {
           <section>
             <div className="mb-8">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-black/35">
-                03 · How you live
+                {t.lifestyleSection}
               </p>
 
               <h2 className="mt-2 text-3xl font-black tracking-tight">
-                Help people understand your lifestyle.
+                {t.lifestyleTitle}
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-black/50">
-                Select everything that describes you.
+                {t.lifestyleText}
               </p>
             </div>
 
@@ -324,7 +544,11 @@ export default function CreateRoommatePage() {
                     key={item}
                     type="button"
                     onClick={() =>
-                      toggleOption(item, lifestyle, setLifestyle)
+                      toggleOption(
+                        item,
+                        lifestyle,
+                        setLifestyle,
+                      )
                     }
                     className={`rounded-full border px-5 py-3 text-sm font-semibold transition ${
                       selected
@@ -332,7 +556,10 @@ export default function CreateRoommatePage() {
                         : "border-black/10 bg-[#f7f7f5] hover:border-black/30"
                     }`}
                   >
-                    {item}
+                    {translateOption(
+                      item,
+                      currentLanguage,
+                    )}
                   </button>
                 );
               })}
@@ -344,11 +571,11 @@ export default function CreateRoommatePage() {
           <section>
             <div className="mb-8">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-black/35">
-                04 · Your interests
+                {t.interestsSection}
               </p>
 
               <h2 className="mt-2 text-3xl font-black tracking-tight">
-                What are you into?
+                {t.interestsTitle}
               </h2>
             </div>
 
@@ -361,7 +588,11 @@ export default function CreateRoommatePage() {
                     key={item}
                     type="button"
                     onClick={() =>
-                      toggleOption(item, interests, setInterests)
+                      toggleOption(
+                        item,
+                        interests,
+                        setInterests,
+                      )
                     }
                     className={`rounded-full border px-5 py-3 text-sm font-semibold transition ${
                       selected
@@ -369,7 +600,10 @@ export default function CreateRoommatePage() {
                         : "border-black/10 bg-[#f7f7f5] hover:border-black/30"
                     }`}
                   >
-                    {item}
+                    {translateOption(
+                      item,
+                      currentLanguage,
+                    )}
                   </button>
                 );
               })}
@@ -381,18 +615,20 @@ export default function CreateRoommatePage() {
           <section>
             <div className="mb-8">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-black/35">
-                05 · About you
+                {t.aboutSection}
               </p>
 
               <h2 className="mt-2 text-3xl font-black tracking-tight">
-                Say a little more.
+                {t.aboutTitle}
               </h2>
             </div>
 
             <textarea
               value={about}
-              onChange={(event) => setAbout(event.target.value)}
-              placeholder="Tell potential roommates about yourself, your routine, what kind of home you want and anything else that matters..."
+              onChange={(event) =>
+                setAbout(event.target.value)
+              }
+              placeholder={t.aboutPlaceholder}
               required
               rows={7}
               className="w-full resize-none rounded-3xl border border-black/10 bg-[#f7f7f5] px-5 py-5 leading-7 outline-none transition focus:border-black"
@@ -406,7 +642,7 @@ export default function CreateRoommatePage() {
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="max-w-md text-xs leading-5 text-black/40">
-                Your profile will only be created after you submit this form.
+                {t.profileNote}
               </p>
 
               <button
@@ -414,7 +650,9 @@ export default function CreateRoommatePage() {
                 disabled={loading}
                 className="rounded-full bg-black px-8 py-4 text-sm font-black text-white transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? "Creating profile..." : "Create Profile"}
+                {loading
+                  ? t.creating
+                  : t.create}
               </button>
             </div>
           </section>
@@ -424,11 +662,13 @@ export default function CreateRoommatePage() {
           <div className="mx-auto flex max-w-5xl flex-col gap-5 px-6 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-8">
             <div>
               <div className="text-lg font-black tracking-tight">
-                BARAKA<span className="text-black/35">NEST</span>
+                BARAKA<span className="text-black/35">
+                  NEST
+                </span>
               </div>
 
               <p className="mt-1 text-xs text-black/40">
-                Better student living, together.
+                {t.tagline}
               </p>
             </div>
 
@@ -436,7 +676,7 @@ export default function CreateRoommatePage() {
               href="/roommates"
               className="text-sm font-semibold text-black/50 transition hover:text-black"
             >
-              Browse roommates →
+              {t.browse}
             </Link>
           </div>
         </footer>

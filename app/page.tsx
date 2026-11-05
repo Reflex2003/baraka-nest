@@ -1,27 +1,202 @@
-import Link from "next/link";
+"use client";
 
-const features = [
-  {
-    number: "01",
-    title: "Find a home",
-    description:
+import Link from "next/link";
+import { useLanguage, type Language } from "./language-context";
+
+const translations = {
+  English: {
+    built: "Built for students across Kenya",
+    hero: "Find a place",
+    heroMuted: "that feels right.",
+    heroText:
+      "Baraka Nest brings student houses and roommates together in one simple place — so finding where you belong does not have to be stressful.",
+    exploreHouses: "Explore houses",
+    findRoommate: "Find a roommate",
+    designed: "Designed around student life",
+
+    houses: "Houses",
+    roommates: "Roommates",
+    login: "Log in",
+    getStarted: "Get started",
+
+    yourNextHome: "Your next home",
+    startsHere: "Starts here.",
+    explore: "Explore →",
+    discover: "DISCOVER",
+    idealRoommate:
+      "Your ideal roommate might be closer than you think.",
+
+    findHome: "Find a home",
+    findHomeText:
       "Discover student-friendly houses in the areas that matter to you.",
-  },
-  {
-    number: "02",
-    title: "Find a roommate",
-    description:
+    findRoommateTitle: "Find a roommate",
+    findRoommateText:
       "Connect with students looking for a compatible person to share a space.",
-  },
-  {
-    number: "03",
-    title: "Choose with confidence",
-    description:
+    chooseConfidence: "Choose with confidence",
+    chooseConfidenceText:
       "Compare your options before deciding where your next chapter begins.",
+
+    exploreEyebrow: "Explore",
+    settleTitle: "Everything you need to",
+    settleTitle2: "settle in.",
+    settleText:
+      "Whether you are moving closer to campus or looking for someone to share the journey with, Baraka Nest keeps the process simple.",
+
+    homes: "HOMES",
+    nextHome: "Find your next home.",
+    nextHomeText:
+      "Browse houses designed around student budgets, locations and everyday convenience.",
+
+    roommateLabel: "ROOMMATES",
+    yourPeople: "Find your people.",
+    yourPeopleText:
+      "Meet students looking for roommates and find a setup that actually works for you.",
+
+    nextChapter: "Your next chapter",
+    ready: "Ready to find where",
+    belong: "you belong?",
+    createAccount: "Create your account",
+
+    copyright: "Baraka Nest",
   },
-];
+
+  Swahili: {
+    built: "Imetengenezwa kwa wanafunzi kote Kenya",
+    hero: "Pata sehemu",
+    heroMuted: "inayokufaa.",
+    heroText:
+      "Baraka Nest inaunganisha nyumba za wanafunzi na roommates sehemu moja rahisi — ili kupata sehemu yako isiwe stress.",
+    exploreHouses: "Tafuta nyumba",
+    findRoommate: "Tafuta roommate",
+    designed: "Imeundwa kwa maisha ya wanafunzi",
+
+    houses: "Nyumba",
+    roommates: "Roommates",
+    login: "Ingia",
+    getStarted: "Anza sasa",
+
+    yourNextHome: "Nyumba yako inayofuata",
+    startsHere: "Inaanzia hapa.",
+    explore: "Tafuta →",
+    discover: "TAFUTA",
+    idealRoommate:
+      "Roommate anayekufaa anaweza kuwa karibu kuliko unavyofikiria.",
+
+    findHome: "Pata nyumba",
+    findHomeText:
+      "Gundua nyumba zinazofaa wanafunzi katika maeneo muhimu kwako.",
+    findRoommateTitle: "Pata roommate",
+    findRoommateText:
+      "Ungana na wanafunzi wanaotafuta mtu anayefaa kushiriki naye nyumba.",
+    chooseConfidence: "Chagua ukiwa na uhakika",
+    chooseConfidenceText:
+      "Linganisha chaguo zako kabla ya kuamua mahali pa kuanzia sura yako inayofuata.",
+
+    exploreEyebrow: "Gundua",
+    settleTitle: "Kila kitu unachohitaji ili",
+    settleTitle2: "uanze vizuri.",
+    settleText:
+      "Iwe unahamia karibu na campus au unatafuta mtu wa kushirikiana naye safari, Baraka Nest inafanya mchakato uwe rahisi.",
+
+    homes: "NYUMBA",
+    nextHome: "Pata nyumba yako inayofuata.",
+    nextHomeText:
+      "Browse nyumba kulingana na budget ya wanafunzi, location na convenience ya kila siku.",
+
+    roommateLabel: "ROOMMATES",
+    yourPeople: "Pata watu wako.",
+    yourPeopleText:
+      "Kutana na wanafunzi wanaotafuta roommates na upate setup inayokufaa.",
+
+    nextChapter: "Sura yako inayofuata",
+    ready: "Uko tayari kupata mahali",
+    belong: "panapokufaa?",
+    createAccount: "Tengeneza akaunti",
+
+    copyright: "Baraka Nest",
+  },
+
+  Sheng: {
+    built: "Imebuildiwa wasee wa campus Kenya mzima",
+    hero: "Saka place",
+    heroMuted: "inaku-fit.",
+    heroText:
+      "Baraka Nest imeweka student houses na roommates pamoja place moja — kusaka where unafit isiwe noma.",
+    exploreHouses: "Saka nyumba",
+    findRoommate: "Saka roommate",
+    designed: "Imebuildiwa around student life",
+
+    houses: "Nyumba",
+    roommates: "Roommates",
+    login: "Log in",
+    getStarted: "Anza sasa",
+
+    yourNextHome: "Home yako ingine",
+    startsHere: "Inaanzia hapa.",
+    explore: "Saka →",
+    discover: "DISCOVER",
+    idealRoommate:
+      "Roommate mwenye anakufit anaweza kuwa karibu kuliko unafikiria.",
+
+    findHome: "Saka home",
+    findHomeText:
+      "Discover student-friendly houses kwa areas unadai.",
+    findRoommateTitle: "Saka roommate",
+    findRoommateText:
+      "Connect na wasee wanadai roommate mwenye mnafit kushare space.",
+    chooseConfidence: "Chagua ukiwa sure",
+    chooseConfidenceText:
+      "Compare options zako before udecide next chapter inaanzia wapi.",
+
+    exploreEyebrow: "Explore",
+    settleTitle: "Kila kitu unahitaji ili",
+    settleTitle2: "uset in poa.",
+    settleText:
+      "Whether unahamia karibu na campus ama unadai mtu wa kushare naye journey, Baraka Nest inafanya process ikuwe simple.",
+
+    homes: "HOMES",
+    nextHome: "Saka home yako ingine.",
+    nextHomeText:
+      "Browse houses kulingana na student budget, location na convenience ya daily life.",
+
+    roommateLabel: "ROOMMATES",
+    yourPeople: "Pata wasee wako.",
+    yourPeopleText:
+      "Meet students wanadai roommates na upate setup yenye inawork for you.",
+
+    nextChapter: "Chapter yako ingine",
+    ready: "Uko ready kupata mahali",
+    belong: "unakufit?",
+    createAccount: "Create account",
+
+    copyright: "Baraka Nest",
+  },
+};
 
 export default function Home() {
+  const { language, setLanguage } = useLanguage();
+
+  const currentLanguage = language as Language;
+  const t = translations[currentLanguage];
+
+  const features = [
+    {
+      number: "01",
+      title: t.findHome,
+      description: t.findHomeText,
+    },
+    {
+      number: "02",
+      title: t.findRoommateTitle,
+      description: t.findRoommateText,
+    },
+    {
+      number: "03",
+      title: t.chooseConfidence,
+      description: t.chooseConfidenceText,
+    },
+  ];
+
   return (
     <main className="min-h-screen bg-[#fafafa] text-[#111111]">
       <header className="sticky top-0 z-50 border-b border-black/[0.06] bg-[#fafafa]/90 backdrop-blur-xl">
@@ -38,37 +213,77 @@ export default function Home() {
               href="/houses"
               className="text-sm font-medium text-black/55 transition hover:text-black"
             >
-              Houses
+              {t.houses}
             </Link>
 
             <Link
               href="/roommates"
               className="text-sm font-medium text-black/55 transition hover:text-black"
             >
-              Roommates
+              {t.roommates}
             </Link>
 
             <Link
               href="/login"
               className="text-sm font-medium text-black/55 transition hover:text-black"
             >
-              Log in
+              {t.login}
             </Link>
+
+            <div className="flex items-center gap-1 rounded-full border border-black/10 bg-white p-1">
+              {(["English", "Swahili", "Sheng"] as Language[]).map(
+                (item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setLanguage(item)}
+                    className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition ${
+                      currentLanguage === item
+                        ? "bg-black text-white"
+                        : "text-black/40 hover:text-black"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+            </div>
 
             <Link
               href="/register"
               className="rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black/80"
             >
-              Get started
+              {t.getStarted}
             </Link>
           </nav>
 
-          <Link
-            href="/register"
-            className="rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white md:hidden"
-          >
-            Get started
-          </Link>
+          <div className="flex items-center gap-2 md:hidden">
+            <div className="flex rounded-full border border-black/10 bg-white p-1">
+              {(["English", "Swahili", "Sheng"] as Language[]).map(
+                (item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setLanguage(item)}
+                    className={`rounded-full px-2 py-1.5 text-[9px] font-bold transition ${
+                      currentLanguage === item
+                        ? "bg-black text-white"
+                        : "text-black/40"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+            </div>
+
+            <Link
+              href="/register"
+              className="rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              {t.getStarted}
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -79,19 +294,17 @@ export default function Home() {
           <div className="flex flex-col justify-center">
             <div className="mb-7 inline-flex w-fit items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-medium text-black/55 shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-black" />
-              Built for students across Kenya
+              {t.built}
             </div>
 
             <h1 className="max-w-4xl text-5xl font-semibold leading-[0.98] tracking-[-0.055em] sm:text-6xl lg:text-7xl xl:text-[82px]">
-              Find a place
+              {t.hero}
               <br />
-              <span className="text-black/35">that feels right.</span>
+              <span className="text-black/35">{t.heroMuted}</span>
             </h1>
 
             <p className="mt-8 max-w-xl text-base leading-7 text-black/50 sm:text-lg">
-              Baraka Nest brings student houses and roommates together in one
-              simple place — so finding where you belong does not have to be
-              stressful.
+              {t.heroText}
             </p>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
@@ -99,7 +312,7 @@ export default function Home() {
                 href="/houses"
                 className="group flex items-center justify-center gap-3 rounded-full bg-black px-7 py-4 text-sm font-semibold text-white transition hover:bg-black/85"
               >
-                Explore houses
+                {t.exploreHouses}
                 <span className="transition-transform group-hover:translate-x-1">
                   →
                 </span>
@@ -109,7 +322,7 @@ export default function Home() {
                 href="/roommates"
                 className="flex items-center justify-center rounded-full border border-black/10 bg-white px-7 py-4 text-sm font-semibold transition hover:border-black/20 hover:bg-black/[0.02]"
               >
-                Find a roommate
+                {t.findRoommate}
               </Link>
             </div>
 
@@ -124,7 +337,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <span>Designed around student life</span>
+              <span>{t.designed}</span>
             </div>
           </div>
 
@@ -144,19 +357,23 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <p className="text-sm text-white/40">Your next home</p>
+                  <p className="text-sm text-white/40">
+                    {t.yourNextHome}
+                  </p>
 
                   <h2 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white">
-                    Starts here.
+                    {t.startsHere}
                   </h2>
 
                   <div className="mt-8 h-px w-full bg-white/10" />
 
                   <div className="mt-5 flex items-center justify-between">
-                    <span className="text-xs text-white/35">Houses</span>
+                    <span className="text-xs text-white/35">
+                      {t.houses}
+                    </span>
 
                     <span className="text-xs text-white/70">
-                      Explore →
+                      {t.explore}
                     </span>
                   </div>
                 </div>
@@ -166,14 +383,14 @@ export default function Home() {
             <div className="absolute bottom-10 left-0 w-64 rounded-3xl border border-black/10 bg-white p-5 shadow-xl">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-black/40">
-                  DISCOVER
+                  {t.discover}
                 </span>
 
                 <span className="text-xs text-black/30">→</span>
               </div>
 
               <p className="mt-5 text-lg font-semibold tracking-tight">
-                Your ideal roommate might be closer than you think.
+                {t.idealRoommate}
               </p>
 
               <div className="mt-5 h-1 w-16 rounded-full bg-black" />
@@ -212,18 +429,17 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-6 py-24 sm:px-8 lg:px-10 lg:py-32">
         <div className="max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/35">
-            Explore
+            {t.exploreEyebrow}
           </p>
 
           <h2 className="mt-5 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
-            Everything you need to
+            {t.settleTitle}
             <br />
-            settle in.
+            {t.settleTitle2}
           </h2>
 
           <p className="mt-6 text-base leading-7 text-black/45">
-            Whether you are moving closer to campus or looking for someone to
-            share the journey with, Baraka Nest keeps the process simple.
+            {t.settleText}
           </p>
         </div>
 
@@ -237,7 +453,7 @@ export default function Home() {
             <div className="relative flex h-full flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-white/40">
-                  HOMES
+                  {t.homes}
                 </span>
 
                 <span className="text-xl text-white/40 transition-transform group-hover:translate-x-1">
@@ -247,12 +463,11 @@ export default function Home() {
 
               <div>
                 <h3 className="text-3xl font-semibold tracking-[-0.04em]">
-                  Find your next home.
+                  {t.nextHome}
                 </h3>
 
                 <p className="mt-4 max-w-md text-sm leading-6 text-white/45">
-                  Browse houses designed around student budgets, locations and
-                  everyday convenience.
+                  {t.nextHomeText}
                 </p>
               </div>
             </div>
@@ -267,7 +482,7 @@ export default function Home() {
             <div className="relative flex h-full flex-col justify-between">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-black/35">
-                  ROOMMATES
+                  {t.roommateLabel}
                 </span>
 
                 <span className="text-xl text-black/30 transition-transform group-hover:translate-x-1">
@@ -277,12 +492,11 @@ export default function Home() {
 
               <div>
                 <h3 className="text-3xl font-semibold tracking-[-0.04em]">
-                  Find your people.
+                  {t.yourPeople}
                 </h3>
 
                 <p className="mt-4 max-w-md text-sm leading-6 text-black/45">
-                  Meet students looking for roommates and find a setup that
-                  actually works for you.
+                  {t.yourPeopleText}
                 </p>
               </div>
             </div>
@@ -294,13 +508,13 @@ export default function Home() {
         <div className="mx-auto max-w-7xl overflow-hidden rounded-[36px] bg-[#111111] px-7 py-16 text-white sm:px-12 lg:px-16 lg:py-20">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/35">
-              Your next chapter
+              {t.nextChapter}
             </p>
 
             <h2 className="mt-6 text-4xl font-semibold leading-tight tracking-[-0.045em] sm:text-5xl">
-              Ready to find where
+              {t.ready}
               <br />
-              you belong?
+              {t.belong}
             </h2>
 
             <div className="mt-9">
@@ -308,7 +522,7 @@ export default function Home() {
                 href="/register"
                 className="inline-flex rounded-full bg-white px-7 py-4 text-sm font-semibold text-black transition hover:bg-white/85"
               >
-                Create your account
+                {t.createAccount}
               </Link>
             </div>
           </div>
@@ -317,24 +531,36 @@ export default function Home() {
 
       <footer className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-10 text-sm text-black/35 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
         <span className="font-semibold text-black">
-          Baraka<span className="text-black/30">Nest</span>
+          {t.copyright.split(" ")[0]}
+          <span className="text-black/30">Nest</span>
         </span>
 
         <div className="flex gap-6">
-          <Link href="/houses" className="transition hover:text-black">
-            Houses
+          <Link
+            href="/houses"
+            className="transition hover:text-black"
+          >
+            {t.houses}
           </Link>
 
-          <Link href="/roommates" className="transition hover:text-black">
-            Roommates
+          <Link
+            href="/roommates"
+            className="transition hover:text-black"
+          >
+            {t.roommates}
           </Link>
 
-          <Link href="/login" className="transition hover:text-black">
-            Log in
+          <Link
+            href="/login"
+            className="transition hover:text-black"
+          >
+            {t.login}
           </Link>
         </div>
 
-        <span>© {new Date().getFullYear()} Baraka Nest</span>
+        <span>
+          © {new Date().getFullYear()} Baraka Nest
+        </span>
       </footer>
     </main>
   );

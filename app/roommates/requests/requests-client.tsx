@@ -47,10 +47,10 @@ const translations = {
 
   Swahili: {
     title: "Maombi ya connection",
-    subtitle: "Manage wanafunzi wanataka kuconnect na wewe.",
+    subtitle: "Dhibiti wanafunzi wanaotaka kuconnect na wewe.",
     back: "← Rudi kwa roommates",
-    incoming: "Maombi uliyopewa",
-    sent: "Maombi umetuma",
+    incoming: "Maombi uliyopokea",
+    sent: "Maombi uliyotuma",
     noIncoming: "Hakuna maombi bado.",
     noSent: "Bado hujatuma request yoyote.",
     accept: "Kubali",
@@ -60,7 +60,7 @@ const translations = {
     pending: "Inasubiri",
     accepting: "Inakubali...",
     declining: "Inakataa...",
-    loading: "Inapakia requests...",
+    loading: "Inapakia maombi...",
     error: "Kuna tatizo. Jaribu tena.",
     viewProfile: "Angalia profile",
     budget: "Budget",
@@ -110,6 +110,9 @@ export default function RoommateRequestsPage() {
 
     async function fetchRequests() {
       try {
+        setLoading(true);
+        setError("");
+
         const response = await fetch("/api/roommates/requests", {
           cache: "no-store",
         });
@@ -121,7 +124,10 @@ export default function RoommateRequestsPage() {
         }
 
         if (!response.ok) {
-          setError(data.error || t.error);
+          setError(
+            data.error ||
+              "Something went wrong. Please try again.",
+          );
           setLoading(false);
           return;
         }
@@ -133,7 +139,9 @@ export default function RoommateRequestsPage() {
         console.error("Requests loading error:", requestError);
 
         if (active) {
-          setError(t.error);
+          setError(
+            "Something went wrong. Please try again.",
+          );
           setLoading(false);
         }
       }
@@ -144,7 +152,7 @@ export default function RoommateRequestsPage() {
     return () => {
       active = false;
     };
-  }, [t.error]);
+  }, []);
 
   async function updateRequest(
     requestId: string,
@@ -228,7 +236,9 @@ export default function RoommateRequestsPage() {
     item: ConnectionRequest;
     incomingRequest: boolean;
   }) {
-    const person = incomingRequest ? item.sender : item.receiver;
+    const person = incomingRequest
+      ? item.sender
+      : item.receiver;
 
     return (
       <article className="rounded-3xl border border-[#e3e7df] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -280,7 +290,9 @@ export default function RoommateRequestsPage() {
           </div>
         </div>
 
-        <p className="mt-4 text-sm text-[#68776d]">{person.school}</p>
+        <p className="mt-4 text-sm text-[#68776d]">
+          {person.school}
+        </p>
 
         <div className="mt-5 flex flex-wrap gap-2">
           <Link
@@ -290,31 +302,38 @@ export default function RoommateRequestsPage() {
             {t.viewProfile}
           </Link>
 
-          {incomingRequest && item.status === "pending" && (
-            <>
-              <button
-                type="button"
-                disabled={updatingId === item.id}
-                onClick={() => updateRequest(item.id, "accept")}
-                className="rounded-2xl bg-[#183b2c] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#285640] disabled:cursor-wait disabled:opacity-60"
-              >
-                {updatingId === item.id && updatingAction === "accept"
-                  ? t.accepting
-                  : t.accept}
-              </button>
+          {incomingRequest &&
+            item.status === "pending" && (
+              <>
+                <button
+                  type="button"
+                  disabled={updatingId === item.id}
+                  onClick={() =>
+                    updateRequest(item.id, "accept")
+                  }
+                  className="rounded-2xl bg-[#183b2c] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#285640] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {updatingId === item.id &&
+                  updatingAction === "accept"
+                    ? t.accepting
+                    : t.accept}
+                </button>
 
-              <button
-                type="button"
-                disabled={updatingId === item.id}
-                onClick={() => updateRequest(item.id, "decline")}
-                className="rounded-2xl bg-[#f4e8e6] px-4 py-2.5 text-sm font-bold text-[#9b3d35] transition hover:bg-[#edd8d5] disabled:cursor-wait disabled:opacity-60"
-              >
-                {updatingId === item.id && updatingAction === "decline"
-                  ? t.declining
-                  : t.decline}
-              </button>
-            </>
-          )}
+                <button
+                  type="button"
+                  disabled={updatingId === item.id}
+                  onClick={() =>
+                    updateRequest(item.id, "decline")
+                  }
+                  className="rounded-2xl bg-[#f4e8e6] px-4 py-2.5 text-sm font-bold text-[#9b3d35] transition hover:bg-[#edd8d5] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {updatingId === item.id &&
+                  updatingAction === "decline"
+                    ? t.declining
+                    : t.decline}
+                </button>
+              </>
+            )}
         </div>
       </article>
     );
@@ -338,7 +357,9 @@ export default function RoommateRequestsPage() {
               {t.title}
             </h1>
 
-            <p className="mt-2 text-[#68776d]">{t.subtitle}</p>
+            <p className="mt-2 text-[#68776d]">
+              {t.subtitle}
+            </p>
           </div>
 
           {error && (
@@ -355,7 +376,9 @@ export default function RoommateRequestsPage() {
             <div className="mt-10 grid gap-10 lg:grid-cols-2">
               <section>
                 <div className="mb-5 flex items-center justify-between">
-                  <h2 className="text-xl font-bold">{t.incoming}</h2>
+                  <h2 className="text-xl font-bold">
+                    {t.incoming}
+                  </h2>
 
                   <span className="rounded-full bg-[#dfe8dc] px-3 py-1 text-xs font-bold">
                     {incoming.length}
@@ -381,7 +404,9 @@ export default function RoommateRequestsPage() {
 
               <section>
                 <div className="mb-5 flex items-center justify-between">
-                  <h2 className="text-xl font-bold">{t.sent}</h2>
+                  <h2 className="text-xl font-bold">
+                    {t.sent}
+                  </h2>
 
                   <span className="rounded-full bg-[#f1f4ef] px-3 py-1 text-xs font-bold text-[#526258]">
                     {sent.length}
