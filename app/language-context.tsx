@@ -10,7 +10,7 @@ type LanguageContextType = {
 };
 
 const LanguageContext = createContext<LanguageContextType | undefined>(
-  undefined
+  undefined,
 );
 
 function getSavedLanguage(): Language {
@@ -36,15 +36,21 @@ export function LanguageProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [language, setLanguageState] = useState<Language>(getSavedLanguage);
+  const [language, setLanguageState] =
+    useState<Language>(getSavedLanguage);
 
-  const setLanguage = (newLanguage: Language) => {
+  function setLanguage(newLanguage: Language) {
     setLanguageState(newLanguage);
     localStorage.setItem("baraka-language", newLanguage);
-  };
+  }
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage }}>
+    <LanguageContext.Provider
+      value={{
+        language,
+        setLanguage,
+      }}
+    >
       {children}
     </LanguageContext.Provider>
   );
@@ -55,7 +61,7 @@ export function useLanguage() {
 
   if (!context) {
     throw new Error(
-      "useLanguage must be used inside a LanguageProvider"
+      "useLanguage must be used inside a LanguageProvider",
     );
   }
 

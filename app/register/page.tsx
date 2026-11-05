@@ -1,12 +1,126 @@
-
 "use client";
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLanguage, type Language } from "../language-context";
+
+const translations = {
+  English: {
+    builtForStudents: "Built for students",
+    title: "Find your place.",
+    title2: "Find your people.",
+    description:
+      "Baraka Nest makes finding student-friendly homes and compatible roommates simpler, safer and more convenient.",
+    nextChapter: "Your next chapter starts here.",
+    getStarted: "Get started",
+    createTitle: "Create your account",
+    createDescription:
+      "Choose a username and password. No email required.",
+    username: "Username",
+    usernamePlaceholder: "Choose your username",
+    usernameHint:
+      "3–20 characters · letters, numbers and underscore",
+    password: "Password",
+    passwordPlaceholder: "Create a password",
+    passwordHint:
+      "At least 6 characters with a letter and a number",
+    confirmPassword: "Confirm password",
+    confirmPlaceholder: "Repeat your password",
+    hide: "Hide",
+    show: "Show",
+    creating: "Creating your account...",
+    createAccount: "Create account",
+    alreadyAccount: "Already have an account?",
+    login: "Log in",
+    terms:
+      "By creating an account, you agree to use Baraka Nest responsibly and provide accurate information.",
+    passwordsMismatch: "Your passwords do not match.",
+    passwordRequirements:
+      "Password must be at least 6 characters and contain a letter and a number.",
+    accountError: "Unable to create your account.",
+    tryAgain: "Something went wrong. Please try again.",
+  },
+
+  Swahili: {
+    builtForStudents: "Imetengenezwa kwa wanafunzi",
+    title: "Pata sehemu yako.",
+    title2: "Pata watu wako.",
+    description:
+      "Baraka Nest inarahisisha kupata nyumba zinazofaa wanafunzi na roommates wanaokufaa kwa njia rahisi, salama na convenient.",
+    nextChapter: "Sura yako inayofuata inaanzia hapa.",
+    getStarted: "Anza hapa",
+    createTitle: "Tengeneza akaunti yako",
+    createDescription:
+      "Chagua username na password. Email haihitajiki.",
+    username: "Username",
+    usernamePlaceholder: "Chagua username yako",
+    usernameHint:
+      "Herufi 3–20 · letters, numbers na underscore",
+    password: "Password",
+    passwordPlaceholder: "Tengeneza password",
+    passwordHint:
+      "Angalau herufi 6 ikiwa na letter na number",
+    confirmPassword: "Thibitisha password",
+    confirmPlaceholder: "Rudia password yako",
+    hide: "Ficha",
+    show: "Onyesha",
+    creating: "Inatengeneza akaunti...",
+    createAccount: "Tengeneza akaunti",
+    alreadyAccount: "Tayari una akaunti?",
+    login: "Ingia",
+    terms:
+      "Kwa kutengeneza akaunti, unakubali kutumia Baraka Nest kwa uwajibikaji na kutoa taarifa sahihi.",
+    passwordsMismatch: "Password zako hazifanani.",
+    passwordRequirements:
+      "Password lazima iwe na angalau herufi 6, letter moja na number moja.",
+    accountError: "Imeshindikana kutengeneza akaunti yako.",
+    tryAgain: "Kuna tatizo. Tafadhali jaribu tena.",
+  },
+
+  Sheng: {
+    builtForStudents: "Imebuildiwa wasee wa campus",
+    title: "Pata place yako.",
+    title2: "Pata wasee wako.",
+    description:
+      "Baraka Nest inafanya kusaka student homes na roommates wenye mnafit ikuwe simple, safe na convenient.",
+    nextChapter: "Chapter yako ingine inaanzia hapa.",
+    getStarted: "Anza hapa",
+    createTitle: "Create account yako",
+    createDescription:
+      "Chagua username na password. Email si lazima.",
+    username: "Username",
+    usernamePlaceholder: "Chagua username yako",
+    usernameHint:
+      "Characters 3–20 · letters, numbers na underscore",
+    password: "Password",
+    passwordPlaceholder: "Create password",
+    passwordHint:
+      "At least 6 characters ikiwa na letter na number",
+    confirmPassword: "Confirm password",
+    confirmPlaceholder: "Rudia password yako",
+    hide: "Ficha",
+    show: "Show",
+    creating: "Inacreate account...",
+    createAccount: "Create account",
+    alreadyAccount: "Uko na account tayari?",
+    login: "Log in",
+    terms:
+      "Ukicreate account, unakubali kutumia Baraka Nest poa na kuweka info legit.",
+    passwordsMismatch: "Passwords zako hazifanyi match.",
+    passwordRequirements:
+      "Password lazima ikuwe na characters 6+, letter na number.",
+    accountError: "Account haikuweza kucreate.",
+    tryAgain: "Kuna noma imehappen. Try tena.",
+  },
+};
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { language, setLanguage } = useLanguage();
+
+  const currentLanguage = language as Language;
+  const t = translations[currentLanguage];
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -21,7 +135,16 @@ export default function RegisterPage() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError("Your passwords do not match.");
+      setError(t.passwordsMismatch);
+      return;
+    }
+
+    if (
+      password.length < 6 ||
+      !/[A-Za-z]/.test(password) ||
+      !/[0-9]/.test(password)
+    ) {
+      setError(t.passwordRequirements);
       return;
     }
 
@@ -42,14 +165,14 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.message || "Unable to create your account.");
+        setError(data.message || t.accountError);
         return;
       }
 
       router.push("/");
       router.refresh();
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t.tryAgain);
     } finally {
       setLoading(false);
     }
@@ -58,8 +181,6 @@ export default function RegisterPage() {
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white">
       <div className="grid min-h-screen lg:grid-cols-2">
-
-        {/* Brand side */}
         <section className="relative hidden overflow-hidden lg:flex">
           <div className="absolute inset-0 bg-gradient-to-br from-[#171717] via-[#0a0a0a] to-black" />
 
@@ -73,78 +194,96 @@ export default function RegisterPage() {
 
             <div className="max-w-xl">
               <div className="mb-6 inline-flex rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-medium text-white/60">
-                Built for students
+                {t.builtForStudents}
               </div>
 
               <h1 className="text-5xl font-semibold leading-[1.05] tracking-[-0.04em] xl:text-6xl">
-                Find your place.
+                {t.title}
                 <br />
-                Find your people.
+                {t.title2}
               </h1>
 
               <p className="mt-6 max-w-lg text-base leading-7 text-white/50">
-                Baraka Nest makes finding student-friendly homes and compatible
-                roommates simpler, safer and more convenient.
+                {t.description}
               </p>
             </div>
 
             <p className="text-sm text-white/30">
-              Your next chapter starts here.
+              {t.nextChapter}
             </p>
           </div>
         </section>
 
-        {/* Form side */}
         <section className="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10 lg:bg-white lg:text-black">
           <div className="w-full max-w-md">
-
-            <div className="mb-10 lg:hidden">
-              <Link href="/" className="text-2xl font-bold tracking-tight">
+            <div className="mb-8 flex items-center justify-between lg:mb-10">
+              <Link
+                href="/"
+                className="text-2xl font-bold tracking-tight lg:hidden"
+              >
                 Baraka<span className="text-white/40">Nest</span>
               </Link>
+
+              <div className="ml-auto flex rounded-full border border-white/10 bg-white/[0.05] p-1 lg:border-black/10 lg:bg-black/[0.03]">
+                {(["English", "Swahili", "Sheng"] as Language[]).map(
+                  (item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setLanguage(item)}
+                      className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition ${
+                        currentLanguage === item
+                          ? "bg-white text-black lg:bg-black lg:text-white"
+                          : "text-white/50 hover:text-white lg:text-black/40 lg:hover:text-black"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
+              </div>
             </div>
 
             <div>
-              <p className="mb-3 text-sm font-medium text-black/40">
-                Get started
+              <p className="mb-3 text-sm font-medium text-white/40 lg:text-black/40">
+                {t.getStarted}
               </p>
 
               <h2 className="text-4xl font-semibold tracking-[-0.04em]">
-                Create your account
+                {t.createTitle}
               </h2>
 
-              <p className="mt-3 text-sm leading-6 text-black/50">
-                Choose a username and password. No email required.
+              <p className="mt-3 text-sm leading-6 text-white/50 lg:text-black/50">
+                {t.createDescription}
               </p>
             </div>
 
             <form onSubmit={handleRegister} className="mt-9 space-y-5">
-
               <div>
                 <label className="mb-2 block text-sm font-medium">
-                  Username
+                  {t.username}
                 </label>
 
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Choose your username"
+                  placeholder={t.usernamePlaceholder}
                   minLength={3}
                   maxLength={20}
                   autoComplete="username"
                   required
-                  className="h-13 w-full rounded-2xl border border-black/10 bg-black/[0.025] px-4 text-sm outline-none transition placeholder:text-black/30 focus:border-black/30 focus:bg-white focus:ring-4 focus:ring-black/[0.04]"
+                  className="h-13 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-white/30 focus:bg-white/[0.08] focus:ring-4 focus:ring-white/[0.04] lg:border-black/10 lg:bg-black/[0.025] lg:text-black lg:placeholder:text-black/30 lg:focus:border-black/30 lg:focus:bg-white lg:focus:ring-black/[0.04]"
                 />
 
-                <p className="mt-2 text-xs text-black/35">
-                  3–20 characters · letters, numbers and underscore
+                <p className="mt-2 text-xs text-white/35 lg:text-black/35">
+                  {t.usernameHint}
                 </p>
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium">
-                  Password
+                  {t.password}
                 </label>
 
                 <div className="relative">
@@ -152,30 +291,30 @@ export default function RegisterPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Create a password"
+                    placeholder={t.passwordPlaceholder}
                     minLength={6}
                     autoComplete="new-password"
                     required
-                    className="h-13 w-full rounded-2xl border border-black/10 bg-black/[0.025] px-4 pr-20 text-sm outline-none transition placeholder:text-black/30 focus:border-black/30 focus:bg-white focus:ring-4 focus:ring-black/[0.04]"
+                    className="h-13 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 pr-20 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-white/30 focus:bg-white/[0.08] focus:ring-4 focus:ring-white/[0.04] lg:border-black/10 lg:bg-black/[0.025] lg:text-black lg:placeholder:text-black/30 lg:focus:border-black/30 lg:focus:bg-white lg:focus:ring-black/[0.04]"
                   />
 
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-black/40 hover:text-black"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-white/40 hover:text-white lg:text-black/40 lg:hover:text-black"
                   >
-                    {showPassword ? "Hide" : "Show"}
+                    {showPassword ? t.hide : t.show}
                   </button>
                 </div>
 
-                <p className="mt-2 text-xs text-black/35">
-                  At least 6 characters with a letter and a number
+                <p className="mt-2 text-xs text-white/35 lg:text-black/35">
+                  {t.passwordHint}
                 </p>
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium">
-                  Confirm password
+                  {t.confirmPassword}
                 </label>
 
                 <div className="relative">
@@ -183,18 +322,18 @@ export default function RegisterPage() {
                     type={showConfirm ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat your password"
+                    placeholder={t.confirmPlaceholder}
                     autoComplete="new-password"
                     required
-                    className="h-13 w-full rounded-2xl border border-black/10 bg-black/[0.025] px-4 pr-20 text-sm outline-none transition placeholder:text-black/30 focus:border-black/30 focus:bg-white focus:ring-4 focus:ring-black/[0.04]"
+                    className="h-13 w-full rounded-2xl border border-white/10 bg-white/[0.05] px-4 pr-20 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-white/30 focus:bg-white/[0.08] focus:ring-4 focus:ring-white/[0.04] lg:border-black/10 lg:bg-black/[0.025] lg:text-black lg:placeholder:text-black/30 lg:focus:border-black/30 lg:focus:bg-white lg:focus:ring-black/[0.04]"
                   />
 
                   <button
                     type="button"
                     onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-black/40 hover:text-black"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-white/40 hover:text-white lg:text-black/40 lg:hover:text-black"
                   >
-                    {showConfirm ? "Hide" : "Show"}
+                    {showConfirm ? t.hide : t.show}
                   </button>
                 </div>
               </div>
@@ -208,25 +347,24 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="h-13 w-full rounded-2xl bg-black px-4 text-sm font-semibold text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-13 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-black transition hover:bg-white/85 disabled:cursor-not-allowed disabled:opacity-50 lg:bg-black lg:text-white lg:hover:bg-black/85"
               >
-                {loading ? "Creating your account..." : "Create account"}
+                {loading ? t.creating : t.createAccount}
               </button>
             </form>
 
-            <p className="mt-8 text-center text-sm text-black/45">
-              Already have an account?{" "}
+            <p className="mt-8 text-center text-sm text-white/45 lg:text-black/45">
+              {t.alreadyAccount}{" "}
               <Link
                 href="/login"
-                className="font-semibold text-black transition hover:opacity-60"
+                className="font-semibold text-white transition hover:opacity-60 lg:text-black"
               >
-                Log in
+                {t.login}
               </Link>
             </p>
 
-            <p className="mt-8 text-center text-xs leading-5 text-black/30">
-              By creating an account, you agree to use Baraka Nest responsibly
-              and provide accurate information.
+            <p className="mt-8 text-center text-xs leading-5 text-white/30 lg:text-black/30">
+              {t.terms}
             </p>
           </div>
         </section>
