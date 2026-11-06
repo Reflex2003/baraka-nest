@@ -1,10 +1,27 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "../../navbar";
 import { useLanguage, type Language } from "../../language-context";
 import { getMapEmbedUrl, getMapSearchUrl } from "@/lib/houses";
 import type { House } from "./page";
+
+type Review = {
+  id: string;
+  houseId: string;
+  userId: string;
+  username: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ReviewSummary = {
+  averageRating: number;
+  reviewCount: number;
+};
 
 const translations = {
   English: {
@@ -27,16 +44,30 @@ const translations = {
     distance: "Distance",
     rating: "Rating",
     interested: "I am interested",
-    signIn:
-      "Sign in to send an inquiry about this house.",
+    signIn: "Sign in to send an inquiry about this house.",
     barakaNest: "Baraka Nest",
     tagline: "Student housing made simpler.",
     studentLife: "Student life",
-    mapNote: "Approximate neighbourhood location; confirm the exact address with the host.",
+    mapNote:
+      "Approximate neighbourhood location; confirm the exact address with the host.",
     directions: "Get directions",
     nearby: "Nearby essentials",
     shops: "Shopping centres and useful places",
     transport: "Find public transport nearby",
+    reviews: "Reviews",
+    noReviews: "No reviews yet.",
+    beFirst: "Be the first to review this house.",
+    writeReview: "Write a review",
+    yourRating: "Your rating",
+    yourReview: "Your review",
+    reviewPlaceholder: "Tell other students what you think about this place...",
+    submitReview: "Submit review",
+    submitting: "Submitting...",
+    loginToReview: "Log in to leave a review.",
+    reviewSuccess: "Review posted successfully.",
+    reviewError: "Could not post your review.",
+    characters: "characters",
+    stars: "stars",
   },
 
   Swahili: {
@@ -59,16 +90,31 @@ const translations = {
     distance: "Umbali",
     rating: "Rating",
     interested: "Ninavutiwa",
-    signIn:
-      "Ingia ili kutuma ombi kuhusu nyumba hii.",
+    signIn: "Ingia ili kutuma ombi kuhusu nyumba hii.",
     barakaNest: "Baraka Nest",
     tagline: "Makazi ya wanafunzi yamekuwa rahisi.",
     studentLife: "Maisha ya mwanafunzi",
-    mapNote: "Eneo la mtaa ni la makadirio; thibitisha anwani kamili na mwenye nyumba.",
+    mapNote:
+      "Eneo la mtaa ni la makadirio; thibitisha anwani kamili na mwenye nyumba.",
     directions: "Pata maelekezo",
     nearby: "Huduma za karibu",
     shops: "Maduka na huduma muhimu",
     transport: "Tafuta usafiri wa umma karibu",
+    reviews: "Reviews",
+    noReviews: "Hakuna reviews bado.",
+    beFirst: "Kuwa wa kwanza kureview hii nyumba.",
+    writeReview: "Andika review",
+    yourRating: "Rating yako",
+    yourReview: "Review yako",
+    reviewPlaceholder:
+      "Waambie students wengine unafikiria nini kuhusu hii place...",
+    submitReview: "Tuma review",
+    submitting: "Inatuma...",
+    loginToReview: "Ingia ili kuacha review.",
+    reviewSuccess: "Review imetumwa vizuri.",
+    reviewError: "Review haikuweza kutumwa.",
+    characters: "characters",
+    stars: "stars",
   },
 
   Sheng: {
@@ -91,16 +137,31 @@ const translations = {
     distance: "Distance",
     rating: "Rating",
     interested: "Niko interested",
-    signIn:
-      "Log in utume inquiry kuhusu hii house.",
+    signIn: "Log in utume inquiry kuhusu hii house.",
     barakaNest: "Baraka Nest",
     tagline: "Student housing imekuwa easier.",
     studentLife: "Student life",
-    mapNote: "Hii ni area ya kukadiria; confirm exact address na host.",
+    mapNote:
+      "Hii ni area ya kukadiria; confirm exact address na host.",
     directions: "Pata directions",
     nearby: "Vitu muhimu karibu",
     shops: "Shopping centres na places muhimu",
     transport: "Saka public transport karibu",
+    reviews: "Reviews",
+    noReviews: "Hakuna reviews bado.",
+    beFirst: "Kuwa wa kwanza kureview hii place.",
+    writeReview: "Andika review",
+    yourRating: "Rating yako",
+    yourReview: "Review yako",
+    reviewPlaceholder:
+      "Waambie wasee wengine unafikiria nini kuhusu hii place...",
+    submitReview: "Tuma review",
+    submitting: "Inatuma...",
+    loginToReview: "Log in ndio uache review.",
+    reviewSuccess: "Review imepostiwa poa.",
+    reviewError: "Review imekataa kupostiwa.",
+    characters: "characters",
+    stars: "stars",
   },
 };
 
@@ -149,6 +210,63 @@ function translateAmenity(
   return sheng[amenity] ?? amenity;
 }
 
+function formatReviewDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString();
+}
+
+function ReviewStars({
+  rating,
+  interactive = false,
+  onSelect,
+}: {
+  rating: number;
+  interactive?: boolean;
+  onSelect?: (rating: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((star) => {
+        const active = star <= rating;
+
+        if (interactive) {
+          return (
+            <button
+              key={star}
+              type="button"
+              onClick={() => onSelect?.(star)}
+              aria-label={`${star} stars`}
+              className={`text-2xl leading-none transition ${
+                active
+                  ? "scale-110 text-black"
+                  : "text-black/15 hover:scale-110 hover:text-black/40"
+              }`}
+            >
+              ★
+            </button>
+          );
+        }
+
+        return (
+          <span
+            key={star}
+            className={`text-sm ${
+              active ? "text-black" : "text-black/15"
+            }`}
+          >
+            ★
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function HouseDetailClient({
   house,
 }: {
@@ -158,6 +276,140 @@ export default function HouseDetailClient({
 
   const currentLanguage = language as Language;
   const t = translations[currentLanguage];
+
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary>({
+    averageRating: 0,
+    reviewCount: 0,
+  });
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReviews() {
+      try {
+        setReviewsLoading(true);
+
+        const response = await fetch(
+          `/api/houses/${encodeURIComponent(house.id)}/reviews`,
+          {
+            method: "GET",
+            cache: "no-store",
+          },
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to load reviews.");
+        }
+
+        if (!cancelled) {
+          setReviews(Array.isArray(data.reviews) ? data.reviews : []);
+          setReviewSummary(
+            data.summary ?? {
+              averageRating: 0,
+              reviewCount: 0,
+            },
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setReviews([]);
+          setReviewSummary({
+            averageRating: 0,
+            reviewCount: 0,
+          });
+        }
+      } finally {
+        if (!cancelled) {
+          setReviewsLoading(false);
+        }
+      }
+    }
+
+    loadReviews();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [house.id]);
+
+  async function submitReview() {
+    if (rating < 1 || rating > 5 || comment.trim().length < 3) {
+      setReviewMessage(
+        t.reviewError,
+      );
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      setReviewMessage("");
+
+      const response = await fetch(
+        `/api/houses/${encodeURIComponent(house.id)}/reviews`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rating,
+            comment: comment.trim(),
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || t.reviewError);
+      }
+
+      setReviewMessage(t.reviewSuccess);
+      setRating(0);
+      setComment("");
+
+      const refreshResponse = await fetch(
+        `/api/houses/${encodeURIComponent(house.id)}/reviews`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+
+      const refreshData = await refreshResponse.json();
+
+      if (refreshResponse.ok) {
+        setReviews(
+          Array.isArray(refreshData.reviews)
+            ? refreshData.reviews
+            : [],
+        );
+
+        setReviewSummary(
+          refreshData.summary ?? {
+            averageRating: 0,
+            reviewCount: 0,
+          },
+        );
+      }
+    } catch (error) {
+      setReviewMessage(
+        error instanceof Error
+          ? error.message
+          : t.reviewError,
+      );
+    } finally {
+      setSubmittingReview(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#faf9f6] text-[#183b2c]">
@@ -193,7 +445,9 @@ export default function HouseDetailClient({
                 </div>
 
                 <div className="rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-xs text-white/50">
-                  ★ {house.rating}
+                  ★ {reviewSummary.reviewCount > 0
+                    ? reviewSummary.averageRating.toFixed(1)
+                    : house.rating}
                 </div>
               </div>
 
@@ -259,6 +513,156 @@ export default function HouseDetailClient({
             </section>
 
             <section className="rounded-[28px] border border-black/[0.08] bg-white p-7 sm:p-9">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/30">
+                    {t.reviews}
+                  </p>
+
+                  <div className="mt-3 flex items-center gap-3">
+                    <span className="text-3xl font-semibold tracking-[-0.04em]">
+                      {reviewSummary.reviewCount > 0
+                        ? reviewSummary.averageRating.toFixed(1)
+                        : "—"}
+                    </span>
+
+                    <div>
+                      <ReviewStars
+                        rating={
+                          reviewSummary.reviewCount > 0
+                            ? Math.round(
+                                reviewSummary.averageRating,
+                              )
+                            : 0
+                        }
+                      />
+
+                      <p className="mt-1 text-xs text-black/35">
+                        {reviewSummary.reviewCount}{" "}
+                        {t.reviews.toLowerCase()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-full bg-black/[0.04] px-4 py-2 text-xs font-medium text-black/50">
+                  {t.rating}
+                </div>
+              </div>
+
+              <div className="mt-8 border-t border-black/[0.07] pt-7">
+                <p className="text-sm font-semibold text-black/75">
+                  {t.writeReview}
+                </p>
+
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-medium text-black/40">
+                    {t.yourRating}
+                  </p>
+
+                  <ReviewStars
+                    rating={rating}
+                    interactive
+                    onSelect={setRating}
+                  />
+                </div>
+
+                <textarea
+                  value={comment}
+                  onChange={(event) =>
+                    setComment(event.target.value)
+                  }
+                  maxLength={1000}
+                  placeholder={t.reviewPlaceholder}
+                  className="mt-5 min-h-32 w-full resize-y rounded-2xl border border-black/[0.08] bg-[#fafafa] px-4 py-4 text-sm text-black outline-none transition placeholder:text-black/25 focus:border-black/20 focus:bg-white"
+                />
+
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[11px] text-black/30">
+                    {comment.length}/1000 {t.characters}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={submitReview}
+                    disabled={
+                      submittingReview ||
+                      rating < 1 ||
+                      comment.trim().length < 3
+                    }
+                    className="rounded-full bg-black px-5 py-3 text-xs font-semibold text-white transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    {submittingReview
+                      ? t.submitting
+                      : t.submitReview}
+                  </button>
+                </div>
+
+                {reviewMessage ? (
+                  <p className="mt-4 rounded-2xl bg-black/[0.04] px-4 py-3 text-xs leading-5 text-black/55">
+                    {reviewMessage}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="mt-8 space-y-4">
+                {reviewsLoading ? (
+                  <>
+                    <div className="h-24 animate-pulse rounded-2xl bg-black/[0.04]" />
+                    <div className="h-24 animate-pulse rounded-2xl bg-black/[0.04]" />
+                  </>
+                ) : reviews.length === 0 ? (
+                  <div className="rounded-2xl bg-[#fafafa] px-5 py-6 text-center">
+                    <p className="text-sm font-medium text-black/55">
+                      {t.noReviews}
+                    </p>
+
+                    <p className="mt-1 text-xs text-black/30">
+                      {t.beFirst}
+                    </p>
+                  </div>
+                ) : (
+                  reviews.map((review) => (
+                    <article
+                      key={review.id}
+                      className="rounded-2xl border border-black/[0.06] bg-[#fafafa] p-5"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black text-xs font-semibold text-white">
+                            {review.username
+                              .slice(0, 1)
+                              .toUpperCase()}
+                          </div>
+
+                          <div>
+                            <p className="text-sm font-semibold text-black/75">
+                              {review.username}
+                            </p>
+
+                            <p className="mt-0.5 text-[11px] text-black/30">
+                              {formatReviewDate(
+                                review.createdAt,
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <ReviewStars
+                          rating={review.rating}
+                        />
+                      </div>
+
+                      <p className="mt-4 text-sm leading-6 text-black/55">
+                        {review.comment}
+                      </p>
+                    </article>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-[28px] border border-black/[0.08] bg-white p-7 sm:p-9">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/30">
                 {t.location}
               </p>
@@ -274,10 +678,43 @@ export default function HouseDetailClient({
               <p className="mt-4 text-xs leading-5 text-[#718077]">
                 {t.mapNote} {house.distance}
               </p>
+
               <div className="mt-4 flex flex-wrap gap-2">
-                <a href={getMapSearchUrl(house.location, house.location)} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-full bg-[#183b2c] px-4 text-xs font-bold text-white transition hover:bg-[#285640]">{t.directions}</a>
-                <a href={getMapSearchUrl(house.location, "shopping centre supermarket pharmacy" )} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-full border border-[#dce5db] px-4 text-xs font-bold text-[#355342] transition hover:bg-[#f3f6f1]">{t.shops}</a>
-                <a href={getMapSearchUrl(house.location, "matatu bus stage") } target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-full border border-[#dce5db] px-4 text-xs font-bold text-[#355342] transition hover:bg-[#f3f6f1]">{t.transport}</a>
+                <a
+                  href={getMapSearchUrl(
+                    house.location,
+                    house.location,
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-10 items-center rounded-full bg-[#183b2c] px-4 text-xs font-bold text-white transition hover:bg-[#285640]"
+                >
+                  {t.directions}
+                </a>
+
+                <a
+                  href={getMapSearchUrl(
+                    house.location,
+                    "shopping centre supermarket pharmacy",
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-10 items-center rounded-full border border-[#dce5db] px-4 text-xs font-bold text-[#355342] transition hover:bg-[#f3f6f1]"
+                >
+                  {t.shops}
+                </a>
+
+                <a
+                  href={getMapSearchUrl(
+                    house.location,
+                    "matatu bus stage",
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-10 items-center rounded-full border border-[#dce5db] px-4 text-xs font-bold text-[#355342] transition hover:bg-[#f3f6f1]"
+                >
+                  {t.transport}
+                </a>
               </div>
             </section>
           </div>
@@ -346,7 +783,10 @@ export default function HouseDetailClient({
                   </span>
 
                   <span className="text-sm font-semibold">
-                    ★ {house.rating}
+                    ★{" "}
+                    {reviewSummary.reviewCount > 0
+                      ? reviewSummary.averageRating.toFixed(1)
+                      : house.rating}
                   </span>
                 </div>
               </div>

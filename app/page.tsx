@@ -480,6 +480,10 @@ export default function Home() {
           >
             {t.login}
           </Link>
+
+          <Link href="/contact" className="transition hover:text-black">
+            Contact
+          </Link>
         </div>
 
         <span>

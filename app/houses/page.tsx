@@ -5,6 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import Navbar from "../navbar";
 import { useLanguage, type Language } from "../language-context";
 import { getMapEmbedUrl, houses as mapListings } from "@/lib/houses";
+import { kenyaCounties } from "@/lib/kenya-counties";
+import { canonicalHouseType, houseTypes } from "@/lib/house-types";
+import { freeListingLink } from "@/lib/contact";
 
 const translations = {
   English: {
@@ -46,6 +49,7 @@ const translations = {
     ctaText:
       "Baraka Nest is being built to make student housing easier to discover, compare and choose.",
     join: "Join Baraka Nest",
+    freeListing: "List your place free on WhatsApp",
     houses: "Houses",
     roommates: "Roommates",
     login: "Log in",
@@ -91,6 +95,7 @@ const translations = {
     ctaText:
       "Baraka Nest inajengwa ili kufanya kutafuta, kulinganisha na kuchagua makazi ya wanafunzi kuwa rahisi.",
     join: "Jiunge na Baraka Nest",
+    freeListing: "Tangaza nyumba bure kwa WhatsApp",
     houses: "Nyumba",
     roommates: "Roommates",
     login: "Ingia",
@@ -136,6 +141,7 @@ const translations = {
     ctaText:
       "Baraka Nest inajengwa kufanya kusaka, compare na kuchagua student housing ikuwe easier.",
     join: "Join Baraka Nest",
+    freeListing: "List keja free kwa WhatsApp",
     houses: "Nyumba",
     roommates: "Roommates",
     login: "Log in",
@@ -209,12 +215,12 @@ export default function HousesPage() {
 
   const translatedLocations = [
     t.allLocations,
-    ...Array.from(new Set(listings.map((house) => house.county))).sort(),
+    ...kenyaCounties,
   ];
 
   const translatedTypes = [
     t.allTypes,
-    ...Array.from(new Set(listings.map((house) => house.type))).sort(),
+    ...houseTypes,
   ];
 
   const priceOptions = [
@@ -232,16 +238,15 @@ export default function HousesPage() {
         !searchValue ||
         house.name.toLowerCase().includes(searchValue) ||
         house.location.toLowerCase().includes(searchValue) ||
+        house.county.toLowerCase().includes(searchValue) ||
         house.type.toLowerCase().includes(searchValue);
 
       const matchesLocation =
         location === "All locations" ||
-        house.county
-          .toLowerCase()
-          .includes(location.toLowerCase());
+        house.county.toLowerCase() === location.toLowerCase();
 
       const matchesType =
-        type === "All types" || house.type === type;
+        type === "All types" || canonicalHouseType(house.type) === type;
 
       const matchesPrice =
         maxPrice === "Any price" ||
@@ -618,6 +623,9 @@ export default function HousesPage() {
             >
               {t.join}
             </Link>
+            <a href={freeListingLink} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex w-fit text-sm font-semibold text-white/80 underline decoration-white/30 underline-offset-4 transition hover:text-white">
+              {t.freeListing}
+            </a>
           </div>
         </div>
       </section>
@@ -648,6 +656,7 @@ export default function HousesPage() {
           >
             {t.login}
           </Link>
+          <Link href="/contact" className="transition hover:text-black">Contact</Link>
         </div>
 
         <span>© {new Date().getFullYear()} Baraka Nest</span>

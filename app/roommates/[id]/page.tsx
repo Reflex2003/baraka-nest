@@ -18,7 +18,6 @@ type RoommateProfile = {
   about: string;
   interests: string[];
   lifestyle: string[];
-  matchScore?: number | null;
   matchBreakdown?: {
     budget: boolean;
     location: boolean;
@@ -46,7 +45,7 @@ const translations = {
     backToRoommates: "Back to roommates",
     loading: "Loading profile...",
     connectionError: "Something went wrong. Please try again.",
-    match: "Match",
+    match: "Shared preferences",
     matchItems: ["Budget", "Location", "Lifestyle", "Interests"],
     report: "Report profile", block: "Block profile", unblock: "Unblock",
     blocked: "This profile is blocked for you.", sendReport: "Send report",
@@ -75,7 +74,7 @@ const translations = {
     backToRoommates: "Rudi kwa roommates",
     loading: "Inapakia profile...",
     connectionError: "Kuna tatizo. Jaribu tena.",
-    match: "Inayokufaa",
+    match: "Vitu mnavyofanana",
     matchItems: ["Budget", "Eneo", "Lifestyle", "Unachopenda"],
     report: "Ripoti wasifu", block: "Zuia wasifu", unblock: "Ondoa zuio",
     blocked: "Umezuia wasifu huu.", sendReport: "Tuma ripoti",
@@ -104,7 +103,7 @@ const translations = {
     backToRoommates: "Rudi kwa roommates",
     loading: "Inaload profile...",
     connectionError: "Kuna noma imehappen. Jaribu tena.",
-    match: "Match",
+    match: "Vitu mnafanana",
     matchItems: ["Budget", "Area", "Lifestyle", "Interests"],
     report: "Report profile", block: "Block profile", unblock: "Unblock",
     blocked: "Umeblock hii profile.", sendReport: "Tuma report",
@@ -387,12 +386,11 @@ export default function RoommateProfilePage({
               </div>
             </div>
 
-            {profile.matchScore !== null && profile.matchScore !== undefined && profile.matchBreakdown && (
+            {profile.matchBreakdown && (
               <div className="mx-6 -mt-3 mb-2 rounded-2xl border border-[#e4ebe2] bg-[#fbfcfa] p-4 sm:mx-10">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#829087]">{t.match}</p>
-                    <p className="mt-1 text-2xl font-extrabold text-[#183b2c]">{profile.matchScore}%</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {t.matchItems.map((label, index) => {

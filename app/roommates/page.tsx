@@ -18,7 +18,6 @@ type RoommateProfile = {
   about: string;
   interests: string[];
   lifestyle: string[];
-  matchScore: number | null;
   matchBreakdown: {
     budget: boolean;
     location: boolean;
@@ -77,8 +76,9 @@ const translations = {
     budget: "Budget",
     moveIn: "Move in",
 
-    match: "match",
+    match: "Shared preferences",
     matchUnavailable: "Create your profile to see fit",
+    noSharedDetails: "No shared preferences yet",
     matchBreakdown: ["Budget", "Location", "Lifestyle", "Interests"],
     viewProfile: "View profile",
 
@@ -143,8 +143,9 @@ const translations = {
     budget: "Budget",
     moveIn: "Kuhamia",
 
-    match: "match",
+    match: "Vitu mnavyofanana",
     matchUnavailable: "Tengeneza profile kuona inayokufaa",
+    noSharedDetails: "Bado hakuna vitu vinavyofanana",
     matchBreakdown: ["Budget", "Eneo", "Lifestyle", "Unachopenda"],
     viewProfile: "Angalia profile",
 
@@ -209,8 +210,9 @@ const translations = {
     budget: "Budget",
     moveIn: "Move-in",
 
-    match: "match",
+    match: "Vitu mnafanana",
     matchUnavailable: "Tengeneza profile uone fit",
+    noSharedDetails: "Bado hamjapata vitu mnafanana",
     matchBreakdown: ["Budget", "Area", "Lifestyle", "Interests"],
     viewProfile: "Check profile",
 
@@ -590,7 +592,15 @@ export default function RoommatesPage() {
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {filteredProfiles.map(
                 (profile, index) => {
-                  const compatibility = profile.matchScore;
+                  const sharedLabels = profile.matchBreakdown
+                    ? t.matchBreakdown.filter((_, itemIndex) => {
+                        const keys = ["budget", "location", "lifestyle", "interests"] as const;
+                        return Boolean(profile.matchBreakdown?.[keys[itemIndex]]);
+                      })
+                    : [];
+                  const sharedPreferences = profile.matchBreakdown
+                    ? sharedLabels.join(" · ") || t.noSharedDetails
+                    : t.matchUnavailable;
 
                   return (
                     <Link
@@ -614,9 +624,7 @@ export default function RoommatesPage() {
                           </div>
 
                           <div className="rounded-full bg-white px-3 py-2 text-xs font-black shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-md">
-                            {compatibility === null
-                              ? t.matchUnavailable
-                              : `${compatibility}% ${t.match}`}
+                            {sharedPreferences}
                           </div>
                         </div>
 

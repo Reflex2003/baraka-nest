@@ -16,6 +16,7 @@ const translations = {
     notifications: "Notifications",
     dashboard: "Dashboard",
     profile: "Profile",
+    contact: "Contact",
     language: "Language",
     admin: "Admin Centre",
     logout: "Log out",
@@ -30,6 +31,7 @@ const translations = {
     notifications: "Arifa",
     dashboard: "Dashboard",
     profile: "Wasifu",
+    contact: "Wasiliana",
     language: "Lugha",
     admin: "Admin Centre",
     logout: "Toka",
@@ -44,6 +46,7 @@ const translations = {
     notifications: "Arifa",
     dashboard: "Dashboard",
     profile: "Profile",
+    contact: "Contact",
     language: "Lugha",
     admin: "Admin Centre",
     logout: "Toka",
@@ -63,6 +66,7 @@ const moreLinks = [
   { href: "/notifications", key: "notifications" },
   { href: "/dashboard", key: "dashboard" },
   { href: "/profile", key: "profile" },
+  { href: "/contact", key: "contact" },
 ] as const;
 
 export default function Navbar() {

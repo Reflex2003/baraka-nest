@@ -62,7 +62,7 @@ function formatProfile(profile: RoommateProfileRow) {
   };
 }
 
-function scoreMatch(
+function compareProfile(
   mine: RoommateProfileRow,
   other: RoommateProfileRow,
 ) {
@@ -78,15 +78,7 @@ function scoreMatch(
   const otherInterests = parseJsonArray(other.interests).map((item) => item.toLowerCase());
   const lifestyle = ownLifestyle.some((item) => otherLifestyle.includes(item));
   const interests = ownInterests.some((item) => otherInterests.includes(item));
-  const score = (budget ? 35 : budgetDistance <= 0.3 ? 20 : 5) +
-    (location ? 30 : 8) +
-    (lifestyle ? 20 : 6) +
-    (interests ? 15 : 5);
-
-  return {
-    matchScore: score,
-    matchBreakdown: { budget, location, lifestyle, interests },
-  };
+  return { matchBreakdown: { budget, location, lifestyle, interests } };
 }
 
 function isValidText(value: string, maxLength: number) {
@@ -119,8 +111,7 @@ export async function GET(request: Request) {
     return Response.json({
       profiles: visibleProfiles.map((profile) => ({
         ...formatProfile(profile),
-        ...(currentProfile ? scoreMatch(currentProfile, profile) : {
-          matchScore: null,
+        ...(currentProfile ? compareProfile(currentProfile, profile) : {
           matchBreakdown: null,
         }),
       })),
