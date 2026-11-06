@@ -18,6 +18,13 @@ type RoommateProfile = {
   about: string;
   interests: string[];
   lifestyle: string[];
+  matchScore: number | null;
+  matchBreakdown: {
+    budget: boolean;
+    location: boolean;
+    lifestyle: boolean;
+    interests: boolean;
+  } | null;
 };
 
 const locations = [
@@ -71,6 +78,8 @@ const translations = {
     moveIn: "Move in",
 
     match: "match",
+    matchUnavailable: "Create your profile to see fit",
+    matchBreakdown: ["Budget", "Location", "Lifestyle", "Interests"],
     viewProfile: "View profile",
 
     error:
@@ -135,6 +144,8 @@ const translations = {
     moveIn: "Kuhamia",
 
     match: "match",
+    matchUnavailable: "Tengeneza profile kuona inayokufaa",
+    matchBreakdown: ["Budget", "Eneo", "Lifestyle", "Unachopenda"],
     viewProfile: "Angalia profile",
 
     error:
@@ -199,6 +210,8 @@ const translations = {
     moveIn: "Move-in",
 
     match: "match",
+    matchUnavailable: "Tengeneza profile uone fit",
+    matchBreakdown: ["Budget", "Area", "Lifestyle", "Interests"],
     viewProfile: "Check profile",
 
     error:
@@ -239,15 +252,6 @@ function getInitials(name: string) {
   }
 
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
-
-function getCompatibility(profile: RoommateProfile) {
-  const score =
-    82 +
-    Math.min(profile.interests.length * 2, 8) +
-    Math.min(profile.lifestyle.length, 5);
-
-  return Math.min(score, 96);
 }
 
 export default function RoommatesPage() {
@@ -586,8 +590,7 @@ export default function RoommatesPage() {
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {filteredProfiles.map(
                 (profile, index) => {
-                  const compatibility =
-                    getCompatibility(profile);
+                  const compatibility = profile.matchScore;
 
                   return (
                     <Link
@@ -611,7 +614,9 @@ export default function RoommatesPage() {
                           </div>
 
                           <div className="rounded-full bg-white px-3 py-2 text-xs font-black shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-md">
-                            {compatibility}% {t.match}
+                            {compatibility === null
+                              ? t.matchUnavailable
+                              : `${compatibility}% ${t.match}`}
                           </div>
                         </div>
 
@@ -627,6 +632,19 @@ export default function RoommatesPage() {
                       </div>
 
                       <div className="p-7">
+                        {profile.matchBreakdown && (
+                          <div className="mb-5 flex flex-wrap gap-2">
+                            {t.matchBreakdown.map((label, itemIndex) => {
+                              const keys = ["budget", "location", "lifestyle", "interests"] as const;
+                              const matched = profile.matchBreakdown?.[keys[itemIndex]];
+                              return (
+                                <span key={label} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${matched ? "bg-[#edf3ed] text-[#285640]" : "bg-[#f5f6f4] text-[#849087]"}`}>
+                                  {matched ? "✓" : "·"} {label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                         <div className="space-y-4 text-sm">
                           <div className="flex items-start justify-between gap-5">
                             <span className="text-black/40">

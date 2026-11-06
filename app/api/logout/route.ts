@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { auth } from "@/lib/better-auth";
 
 export async function POST(request: Request) {
   try {

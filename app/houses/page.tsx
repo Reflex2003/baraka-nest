@@ -1,90 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Navbar from "../navbar";
 import { useLanguage, type Language } from "../language-context";
-
-const houses = [
-  {
-    id: "kilimani-modern-studios",
-    name: "Kilimani Modern Studios",
-    location: "Kilimani, Nairobi",
-    distance: "1.2 km from campus",
-    price: 12500,
-    type: "Studio",
-    rooms: "1 bedroom",
-    available: 4,
-    rating: "4.8",
-    featured: true,
-    accent: "dark",
-  },
-  {
-    id: "juja-student-hub",
-    name: "Juja Student Hub",
-    location: "Juja, Kiambu",
-    distance: "0.8 km from campus",
-    price: 7500,
-    type: "Bedsitter",
-    rooms: "1 room",
-    available: 8,
-    rating: "4.6",
-    featured: true,
-    accent: "light",
-  },
-  {
-    id: "kasarani-green-court",
-    name: "Green Court Residences",
-    location: "Kasarani, Nairobi",
-    distance: "1.5 km from campus",
-    price: 9000,
-    type: "Bedsitter",
-    rooms: "1 room",
-    available: 3,
-    rating: "4.7",
-    featured: false,
-    accent: "soft",
-  },
-  {
-    id: "rongai-student-living",
-    name: "Rongai Student Living",
-    location: "Rongai, Kajiado",
-    distance: "2.1 km from campus",
-    price: 6500,
-    type: "Single Room",
-    rooms: "1 room",
-    available: 11,
-    rating: "4.5",
-    featured: false,
-    accent: "light",
-  },
-  {
-    id: "eldoret-campus-view",
-    name: "Campus View Apartments",
-    location: "Eldoret, Uasin Gishu",
-    distance: "0.6 km from campus",
-    price: 8500,
-    type: "Bedsitter",
-    rooms: "1 room",
-    available: 5,
-    rating: "4.9",
-    featured: true,
-    accent: "dark",
-  },
-  {
-    id: "mombasa-student-haven",
-    name: "Student Haven",
-    location: "Mombasa",
-    distance: "1.8 km from campus",
-    price: 8000,
-    type: "Single Room",
-    rooms: "1 room",
-    available: 6,
-    rating: "4.6",
-    featured: false,
-    accent: "soft",
-  },
-];
+import { getMapEmbedUrl, houses as mapListings } from "@/lib/houses";
 
 const translations = {
   English: {
@@ -103,6 +23,16 @@ const translations = {
     exploreHomes: "Explore homes",
     placesToExplore: "places to explore",
     updated: "Updated for student living",
+    map: "Map",
+    list: "List",
+    mapTitle: "Explore homes on the map",
+    mapNote: "Map pins are approximate neighbourhood locations.",
+    viewHouse: "View listing",
+    save: "Save home",
+    saved: "Saved",
+    savedOnly: "Saved homes",
+    allHomes: "All homes",
+    signInToSave: "Sign in to save homes to your list.",
     featured: "Featured",
     perMonth: "per month",
     available: "available",
@@ -119,6 +49,7 @@ const translations = {
     houses: "Houses",
     roommates: "Roommates",
     login: "Log in",
+    listingLoadError: "Live listings could not be refreshed. Showing the latest cached sample while we reconnect.",
   },
 
   Swahili: {
@@ -137,6 +68,16 @@ const translations = {
     exploreHomes: "Gundua nyumba",
     placesToExplore: "maeneo ya kuchunguza",
     updated: "Imeandaliwa kwa maisha ya wanafunzi",
+    map: "Ramani",
+    list: "Orodha",
+    mapTitle: "Gundua nyumba kwenye ramani",
+    mapNote: "Alama za ramani zinaonyesha takriban eneo la mtaa.",
+    viewHouse: "Angalia tangazo",
+    save: "Hifadhi nyumba",
+    saved: "Imehifadhiwa",
+    savedOnly: "Nyumba zilizohifadhiwa",
+    allHomes: "Nyumba zote",
+    signInToSave: "Ingia ili kuhifadhi nyumba.",
     featured: "Imeangaziwa",
     perMonth: "kwa mwezi",
     available: "zinapatikana",
@@ -153,6 +94,7 @@ const translations = {
     houses: "Nyumba",
     roommates: "Roommates",
     login: "Ingia",
+    listingLoadError: "Hatukuweza kusasisha matangazo. Tunaonyesha yaliyohifadhiwa kwa muda tunapounganisha tena.",
   },
 
   Sheng: {
@@ -171,6 +113,16 @@ const translations = {
     exploreHomes: "Saka nyumba",
     placesToExplore: "places za kusaka",
     updated: "Updated for student life",
+    map: "Map",
+    list: "List",
+    mapTitle: "Check homes on the map",
+    mapNote: "Map pins ni approximate area tu.",
+    viewHouse: "Check listing",
+    save: "Save keja",
+    saved: "Ime-save",
+    savedOnly: "Nyumba ume-save",
+    allHomes: "Nyumba zote",
+    signInToSave: "Log in u-save nyumba.",
     featured: "Featured",
     perMonth: "per month",
     available: "ziko available",
@@ -187,6 +139,7 @@ const translations = {
     houses: "Nyumba",
     roommates: "Roommates",
     login: "Log in",
+    listingLoadError: "Live listings hazikuload. Tunaonyesha sample ya karibuni tukiconnect tena.",
   },
 };
 
@@ -204,21 +157,64 @@ export default function HousesPage() {
   const [location, setLocation] = useState("All locations");
   const [type, setType] = useState("All types");
   const [maxPrice, setMaxPrice] = useState("Any price");
+  const [view, setView] = useState<"list" | "map">("list");
+  const [listings, setListings] = useState(mapListings);
+  const [listingError, setListingError] = useState(false);
+  const [selectedMapHouseId, setSelectedMapHouseId] = useState(mapListings[0].id);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [savedOnly, setSavedOnly] = useState(false);
+  const [favoriteError, setFavoriteError] = useState("");
+  const [savingFavorite, setSavingFavorite] = useState("");
+  const [houseControls, setHouseControls] = useState<Record<string, { hidden: boolean; featured: boolean }>>({});
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([
+      fetch("/api/houses/favorites", { credentials: "include" }).then(async (response) => response.ok ? response.json() : null),
+      fetch("/api/houses/controls", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null),
+      fetch("/api/houses", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null),
+    ]).then(([saved, controls, listingResult]) => {
+      if (!active) return;
+      if (Array.isArray(saved?.favorites)) setFavorites(saved.favorites);
+      if (controls?.controls && typeof controls.controls === "object") setHouseControls(controls.controls);
+      if (Array.isArray(listingResult?.houses)) {
+        setListings(listingResult.houses);
+        setListingError(false);
+      } else setListingError(true);
+    }).catch(() => { if (active) setListingError(true); });
+    return () => { active = false; };
+  }, []);
+
+  async function toggleFavorite(houseId: string) {
+    const save = !favorites.includes(houseId);
+    setFavoriteError("");
+    setSavingFavorite(houseId);
+    try {
+      const response = await fetch("/api/houses/favorites", {
+        method: save ? "POST" : "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ houseId }),
+      });
+      const data = await response.json();
+      if (response.status === 401) throw new Error("sign-in");
+      if (!response.ok) throw new Error(data.error || "failed");
+      setFavorites((current) => save ? [...current, houseId] : current.filter((id) => id !== houseId));
+    } catch (error) {
+      setFavoriteError(error instanceof Error && error.message === "sign-in" ? t.signInToSave : t.signInToSave);
+    } finally {
+      setSavingFavorite("");
+    }
+  }
 
   const translatedLocations = [
     t.allLocations,
-    "Nairobi",
-    "Kiambu",
-    "Kajiado",
-    "Uasin Gishu",
-    "Mombasa",
+    ...Array.from(new Set(listings.map((house) => house.county))).sort(),
   ];
 
   const translatedTypes = [
     t.allTypes,
-    "Single Room",
-    "Bedsitter",
-    "Studio",
+    ...Array.from(new Set(listings.map((house) => house.type))).sort(),
   ];
 
   const priceOptions = [
@@ -229,7 +225,7 @@ export default function HousesPage() {
   ];
 
   const filteredHouses = useMemo(() => {
-    return houses.filter((house) => {
+    return listings.filter((house) => {
       const searchValue = search.toLowerCase().trim();
 
       const matchesSearch =
@@ -240,7 +236,7 @@ export default function HousesPage() {
 
       const matchesLocation =
         location === "All locations" ||
-        house.location
+        house.county
           .toLowerCase()
           .includes(location.toLowerCase());
 
@@ -252,15 +248,18 @@ export default function HousesPage() {
         (maxPrice === "Under KSh 7,500" && house.price < 7500) ||
         (maxPrice === "Under KSh 10,000" && house.price < 10000) ||
         (maxPrice === "Under KSh 15,000" && house.price < 15000);
+      const notHidden = !houseControls[house.id]?.hidden;
 
       return (
+        notHidden &&
         matchesSearch &&
         matchesLocation &&
         matchesType &&
-        matchesPrice
+        matchesPrice &&
+        (!savedOnly || favorites.includes(house.id))
       );
     });
-  }, [search, location, type, maxPrice]);
+  }, [search, location, type, maxPrice, savedOnly, favorites, houseControls, listings]);
 
   return (
     <main className="min-h-screen bg-[#fafafa] text-[#111111]">
@@ -380,6 +379,7 @@ export default function HousesPage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-6 py-14 sm:px-8 lg:px-10 lg:py-20">
+        {listingError && <p role="status" className="mb-5 rounded-2xl border border-[#ead9c7] bg-[#fff8f0] px-4 py-3 text-sm leading-6 text-[#82532f]">{t.listingLoadError}</p>}
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/30">
@@ -391,18 +391,66 @@ export default function HousesPage() {
             </h2>
           </div>
 
-          <div className="text-sm text-black/40">
-            {t.updated}
+          <div className="flex items-center justify-between gap-3 sm:justify-end">
+            <div className="text-sm text-black/40">{t.updated}</div>
+              <button type="button" aria-pressed={savedOnly} onClick={() => setSavedOnly((value) => !value)}
+                className={`min-h-10 rounded-full border px-3 text-xs font-bold transition ${savedOnly ? "border-[#183b2c] bg-[#edf3ed] text-[#183b2c]" : "border-[#e1e8df] bg-white text-[#69766d] hover:bg-[#f3f6f1]"}`}>
+                {savedOnly ? t.allHomes : `♡ ${t.savedOnly}`}
+              </button>
+            <div role="group" aria-label="Housing view" className="flex rounded-full border border-[#e1e8df] bg-white p-1">
+              {(["list", "map"] as const).map((mode) => (
+                <button key={mode} type="button" aria-pressed={view === mode} onClick={() => setView(mode)}
+                  className={`min-h-9 rounded-full px-3 text-xs font-bold transition ${view === mode ? "bg-[#183b2c] text-white" : "text-[#69766d] hover:bg-[#f3f6f1]"}`}>
+                  {mode === "list" ? t.list : t.map}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
+        {view === "map" && filteredHouses.length > 0 && (() => {
+          const selected = filteredHouses.find((house) => house.id === selectedMapHouseId) ?? filteredHouses[0];
+          const mapListing = selected;
+          return (
+            <div className="mt-7 grid overflow-hidden rounded-[26px] border border-[#e3e9e1] bg-white shadow-sm lg:grid-cols-[1.25fr_.75fr]">
+              <iframe title={`${selected.name} map`} src={getMapEmbedUrl(mapListing)} loading="lazy" referrerPolicy="no-referrer"
+                className="h-[300px] w-full border-0 sm:h-[380px]" />
+              <div className="flex flex-col p-5 sm:p-6">
+                <p className="text-xs font-bold uppercase tracking-[0.13em] text-[#87938a]">{t.mapTitle}</p>
+                <h3 className="mt-2 text-lg font-extrabold text-[#183b2c]">{selected.name}</h3>
+                <p className="mt-1 text-sm text-[#748078]">{selected.location}</p>
+                <p className="mt-4 text-xl font-extrabold text-[#26352b]">{formatPrice(selected.price)} <span className="text-xs font-medium text-[#849087]">{t.perMonth}</span></p>
+                <p className="mt-auto pt-4 text-xs leading-5 text-[#8a958e]">{t.mapNote}</p>
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  {filteredHouses.map((house) => (
+                    <button key={house.id} type="button" aria-pressed={selected.id === house.id} onClick={() => setSelectedMapHouseId(house.id)}
+                      className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold ${selected.id === house.id ? "bg-[#edf3ed] text-[#183b2c]" : "bg-[#f5f7f3] text-[#69766d]"}`}>
+                      {house.location}
+                    </button>
+                  ))}
+                </div>
+                <Link href={`/houses/${selected.id}`} className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full bg-[#183b2c] px-5 text-sm font-bold text-white hover:bg-[#285640]">{t.viewHouse}</Link>
+              </div>
+            </div>
+          );
+        })()}
+
+        {favoriteError && <p role="status" className="mt-4 rounded-xl bg-[#fff7ed] px-4 py-3 text-sm font-medium text-[#8f5421]">{favoriteError} <Link href="/login" className="font-bold underline">{t.login}</Link></p>}
+
         {filteredHouses.length > 0 ? (
           <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {filteredHouses.map((house) => (
-              <Link
+            {filteredHouses.map((house) => {
+              const details = house;
+              const isSaved = favorites.includes(house.id);
+              const isFeatured = houseControls[house.id]?.featured ?? house.featured;
+              return (
+              <article
                 key={house.id}
+                className="group relative overflow-hidden rounded-[28px] border border-[#e3e9e1] bg-white transition duration-300 hover:-translate-y-1 hover:border-[#cdd9ca] hover:shadow-xl"
+              >
+              <Link
                 href={`/houses/${house.id}`}
-                className="group overflow-hidden rounded-[28px] border border-black/[0.08] bg-white transition duration-300 hover:-translate-y-1 hover:border-black/15 hover:shadow-xl"
+                className="block"
               >
                 <div
                   className={`relative h-60 overflow-hidden ${
@@ -416,7 +464,7 @@ export default function HousesPage() {
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.12] via-transparent to-black/[0.12]" />
 
                   <div className="absolute left-5 top-5 flex gap-2">
-                    {house.featured && (
+                    {isFeatured && (
                       <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-black">
                         {t.featured}
                       </span>
@@ -498,9 +546,23 @@ export default function HousesPage() {
                       {house.distance}
                     </span>
                   </div>
+                  {details && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {details.amenities.slice(0, 3).map((amenity) => (
+                        <span key={amenity} className="rounded-full bg-[#f3f6f1] px-2.5 py-1 text-[10px] font-semibold text-[#65746a]">{amenity}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </Link>
-            ))}
+              <button type="button" disabled={savingFavorite === house.id}
+                aria-label={isSaved ? t.saved : t.save} aria-pressed={isSaved}
+                onClick={() => void toggleFavorite(house.id)}
+                className="absolute right-4 top-4 z-10 flex h-11 min-w-11 items-center justify-center rounded-full border border-white/70 bg-white/95 px-3 text-lg text-[#183b2c] shadow-sm transition hover:scale-105 disabled:opacity-60">
+                {savingFavorite === house.id ? "…" : isSaved ? "♥" : "♡"}
+              </button>
+              </article>
+            );})}
           </div>
         ) : (
           <div className="mt-10 rounded-[28px] border border-black/10 bg-white px-6 py-20 text-center">

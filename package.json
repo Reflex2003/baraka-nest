@@ -4,14 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate:turso": "node migrate-to-turso.js"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "@libsql/kysely-libsql": "^0.4.1",
     "better-auth": "^1.7.12",
     "better-sqlite3": "^13.0.3",
-    "next": "16.3.8",
+    "dotenv": "^18.0.9",
+    "kysely": "0.29.7",
+    "next": "^16.4.5",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -22,7 +27,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "^16.4.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

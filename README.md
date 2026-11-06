@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Baraka Nest
 
-## Getting Started
+Baraka Nest is a student housing and roommate discovery app built with Next.js, Better Auth, Kysely, and Turso/libSQL.
 
-First, run the development server:
+## Local setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1. Install dependencies with `npm install`.
+2. Copy `.env.example` to `.env.local`.
+3. Set `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `BETTER_AUTH_SECRET` (at least 32 random characters), and `BETTER_AUTH_URL`.
+5. Start the app with `npm run dev`.
+
+The app uses Turso for both authentication/session data and roommate profiles/connections. It fails early when the database URL or auth secret is missing.
+
+Housing listings are stored in Turso and seeded idempotently with the original sample listings. A super-admin can add, edit, feature, hide, or remove listings from the unlinked `/nest-control-panel` route. Add accurate inventory and map coordinates before promoting the platform; the included listings are starter examples, not verified landlord submissions.
+
+## Moving local SQLite data to Turso
+
+The local `baraka-nest.db` is a backup and the migration source. It is intentionally ignored by Git for new files. To copy its tables into the configured Turso database, run:
+
+```sh
+npm run migrate:turso
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The migration is repeatable: it creates missing tables, inserts missing rows, and checks every local row against Turso. It never deletes or modifies the SQLite backup. Keep the backup until the Turso data and sign-in/session flows have been checked.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Checks
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```sh
+npm run lint
+npx tsc --noEmit
+npm run build
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Do not commit `.env.local`, Turso tokens, local database files, or production data.

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLanguage, type Language } from "./language-context";
+import Navbar from "./navbar";
 
 const translations = {
   English: {
@@ -12,6 +13,7 @@ const translations = {
       "Baraka Nest brings student houses and roommates together in one simple place — so finding where you belong does not have to be stressful.",
     exploreHouses: "Explore houses",
     findRoommate: "Find a roommate",
+    findPlace: "Find my place",
     designed: "Designed around student life",
 
     houses: "Houses",
@@ -68,6 +70,7 @@ const translations = {
       "Baraka Nest inaunganisha nyumba za wanafunzi na roommates sehemu moja rahisi — ili kupata sehemu yako isiwe stress.",
     exploreHouses: "Tafuta nyumba",
     findRoommate: "Tafuta roommate",
+    findPlace: "Pata makazi",
     designed: "Imeundwa kwa maisha ya wanafunzi",
 
     houses: "Nyumba",
@@ -124,6 +127,7 @@ const translations = {
       "Baraka Nest imeweka student houses na roommates pamoja place moja — kusaka where unafit isiwe noma.",
     exploreHouses: "Saka nyumba",
     findRoommate: "Saka roommate",
+    findPlace: "Nipatie place",
     designed: "Imebuildiwa around student life",
 
     houses: "Nyumba",
@@ -174,7 +178,7 @@ const translations = {
 };
 
 export default function Home() {
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
 
   const currentLanguage = language as Language;
   const t = translations[currentLanguage];
@@ -198,97 +202,11 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#fafafa] text-[#111111]">
-      <header className="sticky top-0 z-50 border-b border-black/[0.06] bg-[#fafafa]/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-10">
-          <Link
-            href="/"
-            className="text-xl font-bold tracking-[-0.04em]"
-          >
-            Baraka<span className="text-black/35">Nest</span>
-          </Link>
-
-          <nav className="hidden items-center gap-8 md:flex">
-            <Link
-              href="/houses"
-              className="text-sm font-medium text-black/55 transition hover:text-black"
-            >
-              {t.houses}
-            </Link>
-
-            <Link
-              href="/roommates"
-              className="text-sm font-medium text-black/55 transition hover:text-black"
-            >
-              {t.roommates}
-            </Link>
-
-            <Link
-              href="/login"
-              className="text-sm font-medium text-black/55 transition hover:text-black"
-            >
-              {t.login}
-            </Link>
-
-            <div className="flex items-center gap-1 rounded-full border border-black/10 bg-white p-1">
-              {(["English", "Swahili", "Sheng"] as Language[]).map(
-                (item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setLanguage(item)}
-                    className={`rounded-full px-3 py-1.5 text-[10px] font-bold transition ${
-                      currentLanguage === item
-                        ? "bg-black text-white"
-                        : "text-black/40 hover:text-black"
-                    }`}
-                  >
-                    {item}
-                  </button>
-                ),
-              )}
-            </div>
-
-            <Link
-              href="/register"
-              className="rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black/80"
-            >
-              {t.getStarted}
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="flex rounded-full border border-black/10 bg-white p-1">
-              {(["English", "Swahili", "Sheng"] as Language[]).map(
-                (item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setLanguage(item)}
-                    className={`rounded-full px-2 py-1.5 text-[9px] font-bold transition ${
-                      currentLanguage === item
-                        ? "bg-black text-white"
-                        : "text-black/40"
-                    }`}
-                  >
-                    {item}
-                  </button>
-                ),
-              )}
-            </div>
-
-            <Link
-              href="/register"
-              className="rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white"
-            >
-              {t.getStarted}
-            </Link>
-          </div>
-        </div>
-      </header>
+    <main className="min-h-screen bg-[#faf9f6] text-[#183b2c]">
+      <Navbar />
 
       <section className="relative overflow-hidden">
-        <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-black/[0.025] blur-3xl" />
+          <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-[#dfe8dc]/70 blur-3xl" />
 
         <div className="relative mx-auto grid max-w-7xl gap-16 px-6 pb-24 pt-20 sm:px-8 sm:pt-28 lg:grid-cols-[1.15fr_0.85fr] lg:px-10 lg:pb-32 lg:pt-32">
           <div className="flex flex-col justify-center">
@@ -300,7 +218,7 @@ export default function Home() {
             <h1 className="max-w-4xl text-5xl font-semibold leading-[0.98] tracking-[-0.055em] sm:text-6xl lg:text-7xl xl:text-[82px]">
               {t.hero}
               <br />
-              <span className="text-black/35">{t.heroMuted}</span>
+              <span className="text-[#e58b45]">{t.heroMuted}</span>
             </h1>
 
             <p className="mt-8 max-w-xl text-base leading-7 text-black/50 sm:text-lg">
@@ -310,7 +228,7 @@ export default function Home() {
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/houses"
-                className="group flex items-center justify-center gap-3 rounded-full bg-black px-7 py-4 text-sm font-semibold text-white transition hover:bg-black/85"
+                className="group flex items-center justify-center gap-3 rounded-full bg-[#183b2c] px-7 py-4 text-sm font-bold text-white transition hover:bg-[#285640]"
               >
                 {t.exploreHouses}
                 <span className="transition-transform group-hover:translate-x-1">
@@ -320,9 +238,15 @@ export default function Home() {
 
               <Link
                 href="/roommates"
-                className="flex items-center justify-center rounded-full border border-black/10 bg-white px-7 py-4 text-sm font-semibold transition hover:border-black/20 hover:bg-black/[0.02]"
+                className="flex items-center justify-center rounded-full border border-[#dce5db] bg-white px-7 py-4 text-sm font-bold transition hover:border-[#b8c8b8] hover:bg-[#f4f7f2]"
               >
                 {t.findRoommate}
+              </Link>
+              <Link
+                href="/find-my-place"
+                className="flex items-center justify-center rounded-full border border-[#ecd8c4] bg-[#fff8f0] px-7 py-4 text-sm font-bold text-[#8a4e24] transition hover:bg-[#fdf0e2]"
+              >
+                {t.findPlace} <span aria-hidden="true" className="ml-2">→</span>
               </Link>
             </div>
 

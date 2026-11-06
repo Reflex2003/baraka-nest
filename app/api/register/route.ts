@@ -1,7 +1,10 @@
-import { auth } from "@/auth";
+import { auth } from "@/lib/better-auth";
+import { isSameOriginMutation } from "@/lib/request-security";
 
 export async function POST(request: Request) {
   try {
+    if (!isSameOriginMutation(request)) return Response.json({ success: false, message: "Request origin is not allowed." }, { status: 403 });
+    if (Number(request.headers.get("content-length") ?? 0) > 3000) return Response.json({ success: false, message: "Registration request is too large." }, { status: 413 });
     let body: Record<string, unknown>;
 
     try {

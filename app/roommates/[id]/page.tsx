@@ -18,6 +18,13 @@ type RoommateProfile = {
   about: string;
   interests: string[];
   lifestyle: string[];
+  matchScore?: number | null;
+  matchBreakdown?: {
+    budget: boolean;
+    location: boolean;
+    lifestyle: boolean;
+    interests: boolean;
+  } | null;
 };
 
 const translations = {
@@ -39,6 +46,15 @@ const translations = {
     backToRoommates: "Back to roommates",
     loading: "Loading profile...",
     connectionError: "Something went wrong. Please try again.",
+    match: "Match",
+    matchItems: ["Budget", "Location", "Lifestyle", "Interests"],
+    report: "Report profile", block: "Block profile", unblock: "Unblock",
+    blocked: "This profile is blocked for you.", sendReport: "Send report",
+    reportReason: "Reason", reportDetails: "More details (optional)",
+    reportSent: "Thanks. Your report was sent for review.",
+    reportError: "The report could not be sent. Please try again.",
+    blockError: "We could not update this safety setting.",
+    categories: ["Spam", "Unsafe behaviour", "Fake profile", "Harassment", "Other"],
   },
 
   Swahili: {
@@ -59,6 +75,15 @@ const translations = {
     backToRoommates: "Rudi kwa roommates",
     loading: "Inapakia profile...",
     connectionError: "Kuna tatizo. Jaribu tena.",
+    match: "Inayokufaa",
+    matchItems: ["Budget", "Eneo", "Lifestyle", "Unachopenda"],
+    report: "Ripoti wasifu", block: "Zuia wasifu", unblock: "Ondoa zuio",
+    blocked: "Umezuia wasifu huu.", sendReport: "Tuma ripoti",
+    reportReason: "Sababu", reportDetails: "Maelezo zaidi (si lazima)",
+    reportSent: "Asante. Ripoti yako imetumwa ikaguliwe.",
+    reportError: "Ripoti haikutumwa. Jaribu tena.",
+    blockError: "Hatukuweza kubadilisha mipangilio hii ya usalama.",
+    categories: ["Spam", "Tabia isiyo salama", "Wasifu wa uongo", "Unyanyasaji", "Nyingine"],
   },
 
   Sheng: {
@@ -79,6 +104,15 @@ const translations = {
     backToRoommates: "Rudi kwa roommates",
     loading: "Inaload profile...",
     connectionError: "Kuna noma imehappen. Jaribu tena.",
+    match: "Match",
+    matchItems: ["Budget", "Area", "Lifestyle", "Interests"],
+    report: "Report profile", block: "Block profile", unblock: "Unblock",
+    blocked: "Umeblock hii profile.", sendReport: "Tuma report",
+    reportReason: "Reason", reportDetails: "Details zingine (optional)",
+    reportSent: "Asante. Report yako imetumwa ichekiwe.",
+    reportError: "Report haikutumwa. Jaribu tena.",
+    blockError: "Hatujaweza update hii safety setting.",
+    categories: ["Spam", "Unsafe", "Fake profile", "Harassment", "Other"],
   },
 };
 
@@ -98,6 +132,14 @@ export default function RoommateProfilePage({
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [connectionError, setConnectionError] = useState("");
+  const [blocked, setBlocked] = useState(false);
+  const [blockError, setBlockError] = useState("");
+  const [showReport, setShowReport] = useState(false);
+  const [reportCategory, setReportCategory] = useState("spam");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSent, setReportSent] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [reporting, setReporting] = useState(false);
 
   const currentLanguage = language as Language;
   const t = translations[currentLanguage];
@@ -127,6 +169,11 @@ export default function RoommateProfilePage({
         if (active) {
           setProfile(data.profile);
           setLoading(false);
+        }
+        const blockResponse = await fetch("/api/users/blocks", { credentials: "include" });
+        if (blockResponse.ok && active) {
+          const blockData = await blockResponse.json();
+          setBlocked(Array.isArray(blockData.blocked) && blockData.blocked.includes(data.profile.id));
         }
       } catch (error) {
         console.error("Profile loading error:", error);
@@ -179,6 +226,52 @@ export default function RoommateProfilePage({
 
       setConnectionError(t.connectionError);
       setConnecting(false);
+    }
+  }
+
+  async function handleBlock() {
+    if (!profile) return;
+    setBlockError("");
+    try {
+      const response = await fetch("/api/users/blocks", {
+        method: blocked ? "DELETE" : "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: profile.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || t.blockError);
+      setBlocked(!blocked);
+    } catch {
+      setBlockError(t.blockError);
+    }
+  }
+
+  async function handleReport(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!profile || reporting) return;
+    setReporting(true);
+    setReportError("");
+    try {
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId: profile.id,
+          category: reportCategory,
+          details: reportDetails,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || t.reportError);
+      setReportSent(true);
+      setShowReport(false);
+      setReportDetails("");
+    } catch {
+      setReportError(t.reportError);
+    } finally {
+      setReporting(false);
     }
   }
 
@@ -294,6 +387,24 @@ export default function RoommateProfilePage({
               </div>
             </div>
 
+            {profile.matchScore !== null && profile.matchScore !== undefined && profile.matchBreakdown && (
+              <div className="mx-6 -mt-3 mb-2 rounded-2xl border border-[#e4ebe2] bg-[#fbfcfa] p-4 sm:mx-10">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#829087]">{t.match}</p>
+                    <p className="mt-1 text-2xl font-extrabold text-[#183b2c]">{profile.matchScore}%</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {t.matchItems.map((label, index) => {
+                      const keys = ["budget", "location", "lifestyle", "interests"] as const;
+                      const matched = profile.matchBreakdown?.[keys[index]];
+                      return <span key={label} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${matched ? "bg-[#edf3ed] text-[#285640]" : "bg-[#f1f2ef] text-[#849087]"}`}>{matched ? "✓" : "·"} {label}</span>;
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-8 p-6 sm:p-10 md:grid-cols-[1fr_280px]">
               <div>
                 <h2 className="text-xl font-bold">
@@ -408,6 +519,30 @@ export default function RoommateProfilePage({
                     {connectionError}
                   </div>
                 )}
+
+                <div className="mt-5 border-t border-[#e2e8e0] pt-4">
+                  {blocked && <p className="mb-3 rounded-xl bg-[#f1f4ef] px-3 py-2 text-xs font-semibold text-[#526258]">{t.blocked}</p>}
+                  <button type="button" onClick={() => void handleBlock()} className="min-h-10 w-full rounded-full border border-[#dfe6dd] px-4 text-xs font-bold text-[#526258] transition hover:bg-[#f4f6f2]">
+                    {blocked ? t.unblock : t.block}
+                  </button>
+                  {blockError && <p role="alert" className="mt-2 text-xs text-red-700">{blockError}</p>}
+                  <button type="button" onClick={() => setShowReport((value) => !value)} className="mt-3 min-h-9 w-full rounded-full px-4 text-xs font-semibold text-[#849087] transition hover:bg-[#f7f8f6] hover:text-[#526258]">
+                    {t.report}
+                  </button>
+                  {reportSent && <p role="status" className="mt-2 text-xs font-semibold text-[#285640]">{t.reportSent}</p>}
+                  {reportError && <p role="alert" className="mt-2 text-xs text-red-700">{reportError}</p>}
+                  {showReport && <form onSubmit={handleReport} className="mt-3 space-y-2 rounded-2xl border border-[#e5ebe3] bg-white p-3">
+                    <label className="block text-xs font-bold text-[#526258]">{t.reportReason}
+                      <select value={reportCategory} onChange={(event) => setReportCategory(event.target.value)} className="mt-1 min-h-10 w-full rounded-xl border border-[#dfe6dd] bg-white px-3 text-xs">
+                        {["spam", "unsafe", "fake", "harassment", "other"].map((item, index) => <option key={item} value={item}>{t.categories[index]}</option>)}
+                      </select>
+                    </label>
+                    <label className="block text-xs font-bold text-[#526258]">{t.reportDetails}
+                      <textarea value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} maxLength={1200} rows={3} className="mt-1 w-full rounded-xl border border-[#dfe6dd] px-3 py-2 text-xs outline-none focus:border-[#9bb39e]" />
+                    </label>
+                    <button disabled={reporting} className="min-h-10 w-full rounded-full bg-[#183b2c] px-4 text-xs font-bold text-white disabled:opacity-50">{reporting ? "…" : t.sendReport}</button>
+                  </form>}
+                </div>
               </aside>
             </div>
           </section>

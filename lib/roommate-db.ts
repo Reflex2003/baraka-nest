@@ -1,177 +1,113 @@
-import Database from "better-sqlite3";
-import path from "path";
+import { CompiledQuery } from "kysely";
+import { db } from "@/lib/db";
 
-const dbPath = path.join(process.cwd(), "baraka-nest.db");
-
-export const roommateDb = new Database(dbPath);
-
-roommateDb.pragma("journal_mode = WAL");
-
-roommateDb.exec(`
-  CREATE TABLE IF NOT EXISTS roommate_profile (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL UNIQUE,
-    username TEXT NOT NULL,
-    name TEXT NOT NULL,
-    age INTEGER NOT NULL,
-    school TEXT NOT NULL,
-    location TEXT NOT NULL,
-    budget INTEGER NOT NULL,
-    move_in TEXT NOT NULL,
-    preference TEXT NOT NULL,
-    about TEXT NOT NULL,
-    interests TEXT NOT NULL,
-    lifestyle TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS connection_request (
-    id TEXT PRIMARY KEY,
-    sender_user_id TEXT NOT NULL,
-    sender_profile_id TEXT NOT NULL,
-    receiver_user_id TEXT NOT NULL,
-    receiver_profile_id TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(sender_user_id, receiver_user_id)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_roommate_profile_user_id
-    ON roommate_profile(user_id);
-
-  CREATE INDEX IF NOT EXISTS idx_connection_sender
-    ON connection_request(sender_user_id);
-
-  CREATE INDEX IF NOT EXISTS idx_connection_receiver
-    ON connection_request(receiver_user_id);
-
-  CREATE INDEX IF NOT EXISTS idx_connection_status
-    ON connection_request(status);
-`);
-
-export function getRoommateProfileByUserId(userId: string) {
-  return roommateDb
-    .prepare(
-      `
-        SELECT *
-        FROM roommate_profile
-        WHERE user_id = ?
-      `,
-    )
-    .get(userId) as
-    | {
-        id: string;
-        user_id: string;
-        username: string;
-        name: string;
-        age: number;
-        school: string;
-        location: string;
-        budget: number;
-        move_in: string;
-        preference: string;
-        about: string;
-        interests: string;
-        lifestyle: string;
-        created_at: string;
-        updated_at: string;
-      }
-    | undefined;
+function compile(statement: string, parameters: unknown[]) {
+  if (
+    parameters.length === 1 &&
+    parameters[0] !== null &&
+    typeof parameters[0] === "object" &&
+    !Array.isArray(parameters[0])
+  ) {
+    const values: unknown[] = [];
+    const sql = statement.replace(/@([A-Za-z][A-Za-z0-9_]*)/g, (_match, key: string) => {
+      values.push((parameters[0] as Record<string, unknown>)[key]);
+      return "?";
+    });
+    return CompiledQuery.raw(sql, values);
+  }
+  return CompiledQuery.raw(statement, parameters);
 }
 
-export function getAllRoommateProfiles() {
+type QueryResult = {
+  rows: Record<string, unknown>[];
+  rowsAffected?: bigint;
+  insertId?: bigint;
+};
+
+export const roommateDb = {
+  prepare(statement: string) {
+    return {
+      async get(...parameters: unknown[]) {
+        const result = await db.executeQuery(
+          compile(statement, parameters),
+        );
+        return result.rows[0] as Record<string, unknown> | undefined;
+      },
+      async all(...parameters: unknown[]) {
+        const result = await db.executeQuery(
+          compile(statement, parameters),
+        );
+        return result.rows as Record<string, unknown>[];
+      },
+      async run(...parameters: unknown[]): Promise<QueryResult> {
+        const result = await db.executeQuery(
+          compile(statement, parameters),
+        );
+        return {
+          rows: result.rows as Record<string, unknown>[],
+          rowsAffected: result.numAffectedRows,
+          insertId: result.insertId,
+        };
+      },
+    };
+  },
+};
+
+export async function getRoommateProfileByUserId(userId: string) {
   return roommateDb
-    .prepare(
-      `
-        SELECT *
-        FROM roommate_profile
-        ORDER BY created_at DESC
-      `,
-    )
+    .prepare("SELECT * FROM roommate_profile WHERE user_id = ? LIMIT 1")
+    .get(userId);
+}
+
+export async function getAllRoommateProfiles() {
+  return roommateDb
+    .prepare("SELECT * FROM roommate_profile ORDER BY created_at DESC")
     .all();
 }
 
-export function getRoommateProfileById(id: string) {
+export async function getRoommateProfileById(id: string) {
   return roommateDb
-    .prepare(
-      `
-        SELECT *
-        FROM roommate_profile
-        WHERE id = ?
-      `,
-    )
+    .prepare("SELECT * FROM roommate_profile WHERE id = ? LIMIT 1")
     .get(id);
 }
 
-export function getConnectionRequest(
+export async function getConnectionRequest(
   senderUserId: string,
   receiverUserId: string,
 ) {
   return roommateDb
-    .prepare(
-      `
-        SELECT *
-        FROM connection_request
-        WHERE
-          (
-            sender_user_id = ?
-            AND receiver_user_id = ?
-          )
-          OR
-          (
-            sender_user_id = ?
-            AND receiver_user_id = ?
-          )
-        ORDER BY created_at DESC
-        LIMIT 1
-      `,
-    )
-    .get(
-      senderUserId,
-      receiverUserId,
-      receiverUserId,
-      senderUserId,
-    );
+    .prepare(`
+      SELECT * FROM connection_request
+      WHERE (sender_user_id = ? AND receiver_user_id = ?)
+         OR (sender_user_id = ? AND receiver_user_id = ?)
+      ORDER BY created_at DESC LIMIT 1
+    `)
+    .get(senderUserId, receiverUserId, receiverUserId, senderUserId);
 }
 
-export function createConnectionRequest(data: {
+export async function createConnectionRequest(data: {
   id: string;
   senderUserId: string;
   senderProfileId: string;
   receiverUserId: string;
   receiverProfileId: string;
 }) {
-  const existing = getConnectionRequest(
+  const existing = await getConnectionRequest(
     data.senderUserId,
     data.receiverUserId,
   );
+  if (existing) throw new Error("CONNECTION_ALREADY_EXISTS");
 
-  if (existing) {
-    throw new Error("CONNECTION_ALREADY_EXISTS");
-  }
-
-  return roommateDb
-    .prepare(
-      `
-        INSERT INTO connection_request (
-          id,
-          sender_user_id,
-          sender_profile_id,
-          receiver_user_id,
-          receiver_profile_id,
-          status
-        )
-        VALUES (
-          @id,
-          @senderUserId,
-          @senderProfileId,
-          @receiverUserId,
-          @receiverProfileId,
-          'pending'
-        )
-      `,
-    )
-    .run(data);
+  return roommateDb.prepare(`
+    INSERT INTO connection_request (
+      id, sender_user_id, sender_profile_id, receiver_user_id,
+      receiver_profile_id, status
+    ) VALUES (?, ?, ?, ?, ?, 'pending')
+  `).run(
+    data.id,
+    data.senderUserId,
+    data.senderProfileId,
+    data.receiverUserId,
+    data.receiverProfileId,
+  );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useSyncExternalStore } from "react";
 
 export type Language = "English" | "Swahili" | "Sheng";
 
@@ -36,12 +36,29 @@ export function LanguageProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [language, setLanguageState] =
-    useState<Language>(getSavedLanguage);
+  const language = useSyncExternalStore(
+    (callback) => {
+      window.addEventListener("storage", callback);
+      window.addEventListener("baraka-language-change", callback);
+      return () => {
+        window.removeEventListener("storage", callback);
+        window.removeEventListener("baraka-language-change", callback);
+      };
+    },
+    getSavedLanguage,
+    () => "English" as Language,
+  );
+
+  useEffect(() => {
+    document.documentElement.lang =
+      language === "English" ? "en" : language === "Swahili" ? "sw" : "en-KE";
+  }, [language]);
 
   function setLanguage(newLanguage: Language) {
-    setLanguageState(newLanguage);
     localStorage.setItem("baraka-language", newLanguage);
+    window.dispatchEvent(new Event("baraka-language-change"));
+    document.documentElement.lang =
+      newLanguage === "English" ? "en" : newLanguage === "Swahili" ? "sw" : "en-KE";
   }
 
   return (

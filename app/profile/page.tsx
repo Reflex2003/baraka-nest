@@ -3,6 +3,8 @@ import { requireSession } from "@/lib/auth-session";
 import { getRoommateProfileByUserId } from "@/lib/roommate-db";
 import ProfileClient from "./profile-client";
 
+export const dynamic = "force-dynamic";
+
 type RoommateProfile = {
   id: string;
   username: string;
@@ -46,9 +48,25 @@ function calculateCompletion(
 export default async function ProfilePage() {
   const session = await requireSession();
 
-  const profile = getRoommateProfileByUserId(
+  const profileRow = await getRoommateProfileByUserId(
     session.user.id,
   ) as RoommateProfile | undefined;
+  const profile: RoommateProfile | undefined = profileRow
+    ? {
+        id: String(profileRow.id),
+        username: String(profileRow.username),
+        name: String(profileRow.name),
+        age: Number(profileRow.age),
+        school: String(profileRow.school),
+        location: String(profileRow.location),
+        budget: Number(profileRow.budget),
+        move_in: String(profileRow.move_in),
+        preference: String(profileRow.preference),
+        about: String(profileRow.about),
+        interests: String(profileRow.interests),
+        lifestyle: String(profileRow.lifestyle),
+      }
+    : undefined;
 
   const completion = calculateCompletion(profile);
 

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Navbar from "../../navbar";
 import { useLanguage, type Language } from "../../language-context";
+import { getMapEmbedUrl, getMapSearchUrl } from "@/lib/houses";
 import type { House } from "./page";
 
 const translations = {
@@ -30,6 +32,11 @@ const translations = {
     barakaNest: "Baraka Nest",
     tagline: "Student housing made simpler.",
     studentLife: "Student life",
+    mapNote: "Approximate neighbourhood location; confirm the exact address with the host.",
+    directions: "Get directions",
+    nearby: "Nearby essentials",
+    shops: "Shopping centres and useful places",
+    transport: "Find public transport nearby",
   },
 
   Swahili: {
@@ -57,6 +64,11 @@ const translations = {
     barakaNest: "Baraka Nest",
     tagline: "Makazi ya wanafunzi yamekuwa rahisi.",
     studentLife: "Maisha ya mwanafunzi",
+    mapNote: "Eneo la mtaa ni la makadirio; thibitisha anwani kamili na mwenye nyumba.",
+    directions: "Pata maelekezo",
+    nearby: "Huduma za karibu",
+    shops: "Maduka na huduma muhimu",
+    transport: "Tafuta usafiri wa umma karibu",
   },
 
   Sheng: {
@@ -84,6 +96,11 @@ const translations = {
     barakaNest: "Baraka Nest",
     tagline: "Student housing imekuwa easier.",
     studentLife: "Student life",
+    mapNote: "Hii ni area ya kukadiria; confirm exact address na host.",
+    directions: "Pata directions",
+    nearby: "Vitu muhimu karibu",
+    shops: "Shopping centres na places muhimu",
+    transport: "Saka public transport karibu",
   },
 };
 
@@ -143,54 +160,8 @@ export default function HouseDetailClient({
   const t = translations[currentLanguage];
 
   return (
-    <main className="min-h-screen bg-[#fafafa] text-[#111111]">
-      <header className="sticky top-0 z-50 border-b border-black/[0.06] bg-[#fafafa]/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-10">
-          <Link
-            href="/"
-            className="text-xl font-bold tracking-[-0.04em]"
-          >
-            Baraka<span className="text-black/35">Nest</span>
-          </Link>
-
-          <nav className="hidden items-center gap-8 md:flex">
-            <Link
-              href="/houses"
-              className="text-sm font-semibold text-black"
-            >
-              {t.houses}
-            </Link>
-
-            <Link
-              href="/roommates"
-              className="text-sm font-medium text-black/50 transition hover:text-black"
-            >
-              {t.roommates}
-            </Link>
-
-            <Link
-              href="/login"
-              className="text-sm font-medium text-black/50 transition hover:text-black"
-            >
-              {t.login}
-            </Link>
-
-            <Link
-              href="/register"
-              className="rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black/80"
-            >
-              {t.getStarted}
-            </Link>
-          </nav>
-
-          <Link
-            href="/register"
-            className="rounded-full bg-black px-4 py-2.5 text-sm font-semibold text-white md:hidden"
-          >
-            {t.getStarted}
-          </Link>
-        </div>
-      </header>
+    <main className="min-h-screen bg-[#faf9f6] text-[#183b2c]">
+      <Navbar />
 
       <div className="mx-auto max-w-7xl px-6 py-8 sm:px-8 lg:px-10 lg:py-10">
         <Link
@@ -292,25 +263,22 @@ export default function HouseDetailClient({
                 {t.location}
               </p>
 
-              <div className="mt-6 flex min-h-[220px] items-center justify-center overflow-hidden rounded-3xl bg-[#111111]">
-                <div className="text-center">
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-xl text-white">
-                    ⌖
-                  </div>
+              <iframe
+                title={`${house.location} map`}
+                src={getMapEmbedUrl(house)}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="mt-6 h-[280px] w-full rounded-3xl border-0 bg-[#f1f4ef] sm:h-[340px]"
+              />
 
-                  <p className="mt-5 text-sm font-medium text-white">
-                    {house.location}
-                  </p>
-
-                  <p className="mt-2 text-xs text-white/35">
-                    {house.distance}
-                  </p>
-                </div>
-              </div>
-
-              <p className="mt-4 text-xs leading-5 text-black/35">
-                {t.exactLocation}
+              <p className="mt-4 text-xs leading-5 text-[#718077]">
+                {t.mapNote} {house.distance}
               </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <a href={getMapSearchUrl(house.location, house.location)} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-full bg-[#183b2c] px-4 text-xs font-bold text-white transition hover:bg-[#285640]">{t.directions}</a>
+                <a href={getMapSearchUrl(house.location, "shopping centre supermarket pharmacy" )} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-full border border-[#dce5db] px-4 text-xs font-bold text-[#355342] transition hover:bg-[#f3f6f1]">{t.shops}</a>
+                <a href={getMapSearchUrl(house.location, "matatu bus stage") } target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-full border border-[#dce5db] px-4 text-xs font-bold text-[#355342] transition hover:bg-[#f3f6f1]">{t.transport}</a>
+              </div>
             </section>
           </div>
 

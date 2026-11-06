@@ -25,6 +25,8 @@ type DashboardClientProps = {
   connections: number;
   displayName: string;
   profileCompletion: number;
+  dataUnavailable: boolean;
+  authenticationUnavailable: boolean;
 };
 
 const translations = {
@@ -94,6 +96,9 @@ const translations = {
 
     active: "Active",
     notCreated: "Not created",
+    dataUnavailable: "Some dashboard information could not load. Try again shortly.",
+    authenticationUnavailable: "We could not verify your session right now. Please try again in a moment.",
+    retry: "Retry",
   },
 
   Swahili: {
@@ -162,6 +167,9 @@ const translations = {
 
     active: "Active",
     notCreated: "Haijatengenezwa",
+    dataUnavailable: "Baadhi ya taarifa za dashboard hazikupakia. Jaribu tena baada ya muda mfupi.",
+    authenticationUnavailable: "Hatukuweza kuthibitisha session yako kwa sasa. Tafadhali jaribu tena baada ya muda mfupi.",
+    retry: "Jaribu tena",
   },
 
   Sheng: {
@@ -230,6 +238,9 @@ const translations = {
 
     active: "Active",
     notCreated: "Haijafanywa",
+    dataUnavailable: "Baadhi ya dashboard haikuload. Jaribu tena baada ya muda mfupi.",
+    authenticationUnavailable: "Hatujaweza kuverify session yako sasa. Jaribu tena baada ya dakika kidogo.",
+    retry: "Jaribu tena",
   },
 };
 
@@ -239,6 +250,8 @@ export default function DashboardClient({
   connections,
   displayName,
   profileCompletion,
+  dataUnavailable,
+  authenticationUnavailable,
 }: DashboardClientProps) {
   const { language } = useLanguage();
 
@@ -252,6 +265,15 @@ export default function DashboardClient({
 
       <main className="min-h-screen bg-[#f7f8f4] px-5 py-8 sm:px-6 lg:py-10">
         <div className="mx-auto max-w-7xl">
+          {authenticationUnavailable ? (
+            <section role="alert" className="mx-auto mt-12 max-w-xl rounded-3xl border border-[#e5ebe3] bg-white p-7 text-center shadow-sm sm:p-10">
+              <p className="text-3xl" aria-hidden="true">⌛</p>
+              <h1 className="mt-4 text-2xl font-extrabold text-[#183b2c]">{t.yourNest}</h1>
+              <p className="mt-3 text-sm leading-6 text-[#647067]">{t.authenticationUnavailable}</p>
+              <button onClick={() => window.location.reload()} className="mt-5 min-h-11 rounded-full bg-[#183b2c] px-5 text-sm font-bold text-white">{t.retry}</button>
+            </section>
+          ) : <>
+          {dataUnavailable && <p role="status" className="mb-5 rounded-2xl border border-[#ead9c7] bg-[#fff8f0] px-4 py-3 text-sm leading-6 text-[#82532f]">{t.dataUnavailable}</p>}
           {/* HEADER */}
           <section className="mb-8">
             <p className="text-sm font-semibold text-[#e58b45]">
@@ -580,6 +602,7 @@ export default function DashboardClient({
               </div>
             </div>
           </section>
+          </>}
         </div>
       </main>
     </>

@@ -1,7 +1,11 @@
+import { auth } from "@/lib/better-auth";
+import { ensureFeatureTables } from "@/lib/db";
 import { getRoommateProfileById } from "@/lib/roommate-db";
+import { roommateDb } from "@/lib/roommate-db";
 
 type RoommateProfileRow = {
   id: string;
+  user_id: string;
   username: string;
   name: string;
   age: number;
@@ -32,10 +36,12 @@ function parseJsonArray(value: string): string[] {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await auth.api.getSession({ headers: request.headers });
+    await ensureFeatureTables();
     const { id } = await params;
     const profileId = String(id ?? "").trim();
 
@@ -48,7 +54,7 @@ export async function GET(
       );
     }
 
-    const profile = getRoommateProfileById(profileId) as
+    const profile = (await getRoommateProfileById(profileId)) as
       | RoommateProfileRow
       | undefined;
 
@@ -59,6 +65,16 @@ export async function GET(
         },
         { status: 404 },
       );
+    }
+
+    if (session?.user) {
+      const block = await roommateDb.prepare(`
+        SELECT 1 FROM user_block
+        WHERE (blocker_user_id = ? AND blocked_user_id = ?)
+           OR (blocker_user_id = ? AND blocked_user_id = ?)
+        LIMIT 1
+      `).get(session.user.id, profile.user_id, profile.user_id, session.user.id);
+      if (block) return Response.json({ error: "Roommate profile not found." }, { status: 404 });
     }
 
     return Response.json({

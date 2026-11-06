@@ -1,4 +1,6 @@
-import { auth } from "@/auth";
+import { auth } from "@/lib/better-auth";
+import { ensureFeatureTables } from "@/lib/db";
+import { isSameOriginMutation } from "@/lib/request-security";
 import {
   getRoommateProfileById,
   getRoommateProfileByUserId,
@@ -22,6 +24,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    if (!isSameOriginMutation(request)) return Response.json({ error: "Request origin is not allowed." }, { status: 403 });
+    await ensureFeatureTables();
     const session = await auth.api.getSession({
       headers: request.headers,
     });
@@ -48,7 +52,7 @@ export async function POST(
     }
 
     const receiverProfile =
-      getRoommateProfileById(profileId) as ReceiverProfile | undefined;
+      (await getRoommateProfileById(profileId)) as ReceiverProfile | undefined;
 
     if (!receiverProfile) {
       return Response.json(
@@ -68,7 +72,15 @@ export async function POST(
       );
     }
 
-    const senderProfile = getRoommateProfileByUserId(session.user.id);
+    const block = await roommateDb.prepare(`
+      SELECT 1 FROM user_block
+      WHERE (blocker_user_id = ? AND blocked_user_id = ?)
+         OR (blocker_user_id = ? AND blocked_user_id = ?)
+      LIMIT 1
+    `).get(session.user.id, receiverProfile.user_id, receiverProfile.user_id, session.user.id);
+    if (block) return Response.json({ error: "This connection is unavailable." }, { status: 403 });
+
+    const senderProfile = await getRoommateProfileByUserId(session.user.id);
 
     if (!senderProfile) {
       return Response.json(
@@ -79,7 +91,7 @@ export async function POST(
       );
     }
 
-    const existingRequest = getConnectionRequest(
+    const existingRequest = await getConnectionRequest(
       session.user.id,
       receiverProfile.user_id,
     ) as ExistingRequest | undefined;
@@ -102,7 +114,7 @@ export async function POST(
     const connectionId = crypto.randomUUID();
 
     try {
-      roommateDb
+      await roommateDb
         .prepare(
           `
             INSERT INTO connection_request (

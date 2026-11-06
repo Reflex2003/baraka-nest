@@ -1,4 +1,6 @@
-import { auth } from "@/auth";
+import { auth } from "@/lib/better-auth";
+import { ensureFeatureTables } from "@/lib/db";
+import { isSameOriginMutation } from "@/lib/request-security";
 import {
   getAllRoommateProfiles,
   getRoommateProfileByUserId,
@@ -60,20 +62,68 @@ function formatProfile(profile: RoommateProfileRow) {
   };
 }
 
+function scoreMatch(
+  mine: RoommateProfileRow,
+  other: RoommateProfileRow,
+) {
+  const budgetDistance = Math.abs(mine.budget - other.budget) /
+    Math.max(mine.budget, other.budget, 1);
+  const budget = budgetDistance <= 0.15;
+  const ownArea = mine.location.toLowerCase().split(",")[0].trim();
+  const otherArea = other.location.toLowerCase().split(",")[0].trim();
+  const location = ownArea === otherArea || mine.location.toLowerCase().includes(otherArea);
+  const ownLifestyle = parseJsonArray(mine.lifestyle).map((item) => item.toLowerCase());
+  const otherLifestyle = parseJsonArray(other.lifestyle).map((item) => item.toLowerCase());
+  const ownInterests = parseJsonArray(mine.interests).map((item) => item.toLowerCase());
+  const otherInterests = parseJsonArray(other.interests).map((item) => item.toLowerCase());
+  const lifestyle = ownLifestyle.some((item) => otherLifestyle.includes(item));
+  const interests = ownInterests.some((item) => otherInterests.includes(item));
+  const score = (budget ? 35 : budgetDistance <= 0.3 ? 20 : 5) +
+    (location ? 30 : 8) +
+    (lifestyle ? 20 : 6) +
+    (interests ? 15 : 5);
+
+  return {
+    matchScore: score,
+    matchBreakdown: { budget, location, lifestyle, interests },
+  };
+}
+
 function isValidText(value: string, maxLength: number) {
   return value.length > 0 && value.length <= maxLength;
 }
 
 export async function GET(request: Request) {
   try {
-    await auth.api.getSession({
+    const session = await auth.api.getSession({
       headers: request.headers,
     });
 
-    const profiles = getAllRoommateProfiles() as RoommateProfileRow[];
+    await ensureFeatureTables();
+    const profiles = (await getAllRoommateProfiles()) as unknown as RoommateProfileRow[];
+    const currentProfile = session?.user
+      ? await getRoommateProfileByUserId(session.user.id) as unknown as RoommateProfileRow | undefined
+      : undefined;
+    const blockedIds = session?.user
+      ? await roommateDb.prepare(`
+          SELECT blocked_user_id AS user_id FROM user_block WHERE blocker_user_id = ?
+          UNION
+          SELECT blocker_user_id AS user_id FROM user_block WHERE blocked_user_id = ?
+        `).all(session.user.id, session.user.id) as { user_id: string }[]
+      : [];
+    const hiddenByBlocks = new Set(blockedIds.map((item) => item.user_id));
+    const visibleProfiles = profiles.filter((profile) =>
+      profile.user_id !== session?.user?.id && !hiddenByBlocks.has(profile.user_id),
+    );
 
     return Response.json({
-      profiles: profiles.map(formatProfile),
+      profiles: visibleProfiles.map((profile) => ({
+        ...formatProfile(profile),
+        ...(currentProfile ? scoreMatch(currentProfile, profile) : {
+          matchScore: null,
+          matchBreakdown: null,
+        }),
+      })),
     });
   } catch (error) {
     console.error("Roommate profiles error:", error);
@@ -89,6 +139,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    if (!isSameOriginMutation(request)) return Response.json({ error: "Request origin is not allowed." }, { status: 403 });
+    if (Number(request.headers.get("content-length") ?? 0) > 12000) return Response.json({ error: "Profile data is too large." }, { status: 413 });
     const session = await auth.api.getSession({
       headers: request.headers,
     });
@@ -102,7 +154,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingProfile = getRoommateProfileByUserId(session.user.id);
+    const existingProfile = await getRoommateProfileByUserId(session.user.id);
 
     if (existingProfile) {
       return Response.json(
@@ -209,7 +261,7 @@ export async function POST(request: Request) {
       "student";
 
     try {
-      roommateDb
+      await roommateDb
         .prepare(
           `
             INSERT INTO roommate_profile (

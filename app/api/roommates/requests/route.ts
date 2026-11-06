@@ -1,4 +1,6 @@
-import { auth } from "@/auth";
+import { auth } from "@/lib/better-auth";
+import { ensureFeatureTables } from "@/lib/db";
+import { isSameOriginMutation } from "@/lib/request-security";
 import { roommateDb } from "@/lib/roommate-db";
 
 type RequestRow = {
@@ -63,7 +65,7 @@ export async function GET(request: Request) {
 
     const userId = session.user.id;
 
-    const incoming = roommateDb
+    const incoming = await roommateDb
       .prepare(
         `
           SELECT
@@ -96,7 +98,7 @@ export async function GET(request: Request) {
       )
       .all(userId) as RequestRow[];
 
-    const sent = roommateDb
+    const sent = await roommateDb
       .prepare(
         `
           SELECT
@@ -129,7 +131,7 @@ export async function GET(request: Request) {
       )
       .all(userId) as RequestRow[];
 
-    const connections = roommateDb
+    const connections = await roommateDb
       .prepare(
         `
           SELECT
@@ -214,6 +216,9 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    if (!isSameOriginMutation(request)) return Response.json({ error: "Request origin is not allowed." }, { status: 403 });
+    if (Number(request.headers.get("content-length") ?? 0) > 2000) return Response.json({ error: "Invalid request." }, { status: 413 });
+    await ensureFeatureTables();
     const session = await auth.api.getSession({
       headers: request.headers,
     });
@@ -261,7 +266,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const connectionRequest = roommateDb
+    const connectionRequest = await roommateDb
       .prepare(
         `
           SELECT
@@ -300,6 +305,16 @@ export async function PATCH(request: Request) {
       );
     }
 
+    if (action === "accept") {
+      const block = await roommateDb.prepare(`
+        SELECT 1 FROM user_block
+        WHERE (blocker_user_id = ? AND blocked_user_id = ?)
+           OR (blocker_user_id = ? AND blocked_user_id = ?)
+        LIMIT 1
+      `).get(connectionRequest.receiver_user_id, connectionRequest.sender_user_id, connectionRequest.sender_user_id, connectionRequest.receiver_user_id);
+      if (block) return Response.json({ error: "This connection is unavailable." }, { status: 403 });
+    }
+
     if (connectionRequest.status !== "pending") {
       return Response.json(
         {
@@ -312,7 +327,7 @@ export async function PATCH(request: Request) {
     const newStatus =
       action === "accept" ? "accepted" : "declined";
 
-    const result = roommateDb
+    const result = await roommateDb
       .prepare(
         `
           UPDATE connection_request
@@ -331,7 +346,7 @@ export async function PATCH(request: Request) {
         session.user.id,
       );
 
-    if (result.changes !== 1) {
+    if (Number(result.rowsAffected ?? 0) !== 1) {
       return Response.json(
         {
           error:

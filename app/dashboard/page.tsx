@@ -1,7 +1,10 @@
-import { auth } from "@/auth";
+import { auth } from "@/lib/better-auth";
 import { roommateDb } from "@/lib/roommate-db";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import DashboardClient from "./dashboard-client";
+
+export const dynamic = "force-dynamic";
 
 type RoommateProfile = {
   id: string;
@@ -47,14 +50,8 @@ function calculateProfileCompletion(profile: RoommateProfile | null) {
   return Math.round((completed / checks.length) * 100);
 }
 
-async function getDashboardData(): Promise<DashboardData> {
-  const requestHeaders = await headers();
-
-  const session = await auth.api.getSession({
-    headers: requestHeaders,
-  });
-
-  if (!session?.user) {
+async function getDashboardData(userId?: string): Promise<DashboardData> {
+  if (!userId) {
     return {
       profile: null,
       pendingRequests: 0,
@@ -62,9 +59,7 @@ async function getDashboardData(): Promise<DashboardData> {
     };
   }
 
-  const userId = session.user.id;
-
-  const profileRow = roommateDb
+  const profileRow = await roommateDb
     .prepare(
       `
         SELECT
@@ -102,7 +97,7 @@ async function getDashboardData(): Promise<DashboardData> {
       }
     | undefined;
 
-  const pendingRow = roommateDb
+  const pendingRow = await roommateDb
     .prepare(
       `
         SELECT COUNT(*) AS count
@@ -113,7 +108,7 @@ async function getDashboardData(): Promise<DashboardData> {
     )
     .get(userId) as { count: number };
 
-  const connectionsRow = roommateDb
+  const connectionsRow = await roommateDb
     .prepare(
       `
         SELECT COUNT(*) AS count
@@ -146,17 +141,31 @@ async function getDashboardData(): Promise<DashboardData> {
 
   return {
     profile,
-    pendingRequests: pendingRow.count,
-    connections: connectionsRow.count,
+    pendingRequests: Number(pendingRow.count),
+    connections: Number(connectionsRow.count),
   };
 }
 
 export default async function DashboardPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null;
+  let authenticationUnavailable = false;
+  try {
+    session = await auth.api.getSession({ headers: await headers() });
+  } catch (error) {
+    authenticationUnavailable = true;
+    console.error("Dashboard session check failed:", error);
+  }
 
-  const data = await getDashboardData();
+  if (!session?.user) redirect("/login");
+
+  let data: DashboardData = { profile: null, pendingRequests: 0, connections: 0 };
+  let dataUnavailable = false;
+  try {
+    data = await getDashboardData(session?.user.id);
+  } catch (error) {
+    dataUnavailable = true;
+    console.error("Dashboard data load failed:", error);
+  }
 
   const profile = data.profile;
 
@@ -174,6 +183,8 @@ export default async function DashboardPage() {
       connections={data.connections}
       displayName={displayName}
       profileCompletion={profileCompletion}
+      dataUnavailable={dataUnavailable}
+      authenticationUnavailable={authenticationUnavailable}
     />
   );
 }
