@@ -1,12 +1,20 @@
+import dns from "node:dns";
+
 import { LibsqlDialect } from "@libsql/kysely-libsql";
 import { CompiledQuery, Kysely, sql } from "kysely";
 import { houses } from "@/lib/houses";
+
+// Turso can occasionally resolve to an unreachable address first on
+// Windows/Node environments. Prefer IPv4 for stable libSQL connections.
+dns.setDefaultResultOrder("ipv4first");
 
 const databaseUrl = process.env.TURSO_DATABASE_URL;
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
 if (!databaseUrl) {
-  throw new Error("TURSO_DATABASE_URL must be configured before starting Baraka Nest.");
+  throw new Error(
+    "TURSO_DATABASE_URL must be configured before starting Baraka Nest.",
+  );
 }
 
 if (

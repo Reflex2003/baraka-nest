@@ -51,6 +51,7 @@ export default async function ProfilePage() {
   const profileRow = await getRoommateProfileByUserId(
     session.user.id,
   ) as RoommateProfile | undefined;
+
   const profile: RoommateProfile | undefined = profileRow
     ? {
         id: String(profileRow.id),
@@ -75,6 +76,11 @@ export default async function ProfilePage() {
     session.user.name ||
     "Student";
 
+  const avatarUrl =
+    typeof session.user.image === "string"
+      ? session.user.image
+      : null;
+
   return (
     <>
       <Navbar />
@@ -83,6 +89,7 @@ export default async function ProfilePage() {
         profile={profile}
         completion={completion}
         displayName={displayName}
+        avatarUrl={avatarUrl}
       />
     </>
   );
