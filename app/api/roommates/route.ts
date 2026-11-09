@@ -73,9 +73,19 @@ function compareProfile(
   const budgetDistance = Math.abs(mine.budget - other.budget) /
     Math.max(mine.budget, other.budget, 1);
   const budget = budgetDistance <= 0.15;
-  const ownArea = mine.location.toLowerCase().split(",")[0].trim();
-  const otherArea = other.location.toLowerCase().split(",")[0].trim();
-  const location = ownArea === otherArea || mine.location.toLowerCase().includes(otherArea);
+  const ownAreas = mine.location
+    .toLocaleLowerCase()
+    .split(",")
+    .map((area) => area.trim())
+    .filter(Boolean);
+  const otherAreas = new Set(
+    other.location
+      .toLocaleLowerCase()
+      .split(",")
+      .map((area) => area.trim())
+      .filter(Boolean),
+  );
+  const location = ownAreas.some((area) => otherAreas.has(area));
   const ownLifestyle = parseJsonArray(mine.lifestyle).map((item) => item.toLowerCase());
   const otherLifestyle = parseJsonArray(other.lifestyle).map((item) => item.toLowerCase());
   const ownInterests = parseJsonArray(mine.interests).map((item) => item.toLowerCase());

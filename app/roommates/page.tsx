@@ -6,6 +6,7 @@ import ProfileImageViewer from "@/components/ProfileImageViewer";
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "../navbar";
 import { useLanguage } from "../language-context";
+import { kenyaCounties } from "@/lib/kenya-counties";
 
 type RoommateProfile = {
   id: string;
@@ -31,8 +32,9 @@ type RoommateProfile = {
   matchScore: number | null;
 };
 
-const locations = [
+const locations = [...new Set([
   "All locations",
+  ...kenyaCounties,
   "Kilimani",
   "Juja",
   "Kasarani",
@@ -42,7 +44,7 @@ const locations = [
   "Eldoret",
   "Nakuru",
   "Mombasa",
-];
+])];
 
 const translations = {
   English: {
@@ -332,9 +334,15 @@ export default function RoommatesPage() {
           interest.toLowerCase().includes(query),
         );
 
+      const normalizedProfileLocation = profile.location.trim().toLocaleLowerCase();
+      const normalizedFilterLocation = location.toLocaleLowerCase();
       const matchesLocation =
         location === "All locations" ||
-        profile.location === location;
+        normalizedProfileLocation === normalizedFilterLocation ||
+        normalizedProfileLocation.startsWith(`${normalizedFilterLocation},`) ||
+        normalizedProfileLocation
+          .split(",")
+          .some((part) => part.trim() === normalizedFilterLocation);
 
       let matchesBudget = true;
 

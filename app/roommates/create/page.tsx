@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import Navbar from "../../navbar";
 import { useLanguage, type Language } from "../../language-context";
 import { profileAvatars } from "@/lib/profile-avatars";
+import { kenyaCounties } from "@/lib/kenya-counties";
 
 const interestOptions = [
   "Football",
@@ -32,17 +33,38 @@ const lifestyleOptions = [
   "Respectful of privacy",
 ];
 
-const locationOptions = [
-  "Kilimani",
-  "Juja",
-  "Kasarani",
-  "Rongai",
-  "Kahawa",
-  "Ruiru",
-  "Eldoret",
-  "Nakuru",
-  "Mombasa",
-];
+const legacyCountyByLocation: Record<string, string> = {
+  Kilimani: "Nairobi",
+  Juja: "Kiambu",
+  Kasarani: "Nairobi",
+  Rongai: "Kajiado",
+  Ruiru: "Kiambu",
+  Eldoret: "Uasin Gishu",
+  Nakuru: "Nakuru",
+  Mombasa: "Mombasa",
+};
+
+function splitSavedLocation(value: string) {
+  const saved = value.trim();
+  const county = kenyaCounties.find((item) =>
+    saved.toLocaleLowerCase() === item.toLocaleLowerCase() ||
+    saved.toLocaleLowerCase().startsWith(`${item},`.toLocaleLowerCase()),
+  );
+
+  if (county) {
+    return {
+      county,
+      detail: saved.slice(county.length).replace(/^,\s*/, "").trim(),
+    };
+  }
+
+  const legacyCounty = Object.entries(legacyCountyByLocation).find(
+    ([area]) => area.toLocaleLowerCase() === saved.toLocaleLowerCase(),
+  );
+  if (legacyCounty) return { county: legacyCounty[1], detail: saved };
+
+  return { county: "", detail: saved };
+}
 
 const translations = {
   English: {
@@ -60,16 +82,23 @@ const translations = {
     yourSchool: "Your school",
     housing: "02 · Housing preferences",
     housingTitle: "What are you looking for?",
-    preferredArea: "Preferred area",
-    selectArea: "Select an area",
+    preferredArea: "Preferred county",
+    selectArea: "Select a county",
+    locationDetailLabel: "Specific area or location",
+    locationHint: "Choose a county, type your preferred location, or do both.",
+    locationPlaceholder: "e.g. Kilimani, Juja, or near campus",
     budget: "Monthly roommate budget",
     moveIn: "Move-in time",
     preference: "Roommate preference",
     lifestyleSection: "03 · How you live",
     lifestyleTitle: "Help people understand your lifestyle.",
-    lifestyleText: "Select everything that describes you.",
+    lifestyleText: "Select everything that describes you, or add your own.",
+    lifestylePlaceholder: "Add a lifestyle detail",
     interestsSection: "04 · Your interests",
     interestsTitle: "What are you into?",
+    interestsText: "Choose your interests, or add your own.",
+    interestsPlaceholder: "Add an interest",
+    addOption: "Add",
     aboutSection: "05 · About you",
     aboutTitle: "Say a little more.",
     aboutPlaceholder:
@@ -110,16 +139,23 @@ const translations = {
     yourSchool: "Jina la chuo chako",
     housing: "02 · Mapendeleo ya makazi",
     housingTitle: "Unatafuta nini?",
-    preferredArea: "Eneo unalopendelea",
-    selectArea: "Chagua eneo",
+    preferredArea: "County unayopendelea",
+    selectArea: "Chagua county",
+    locationDetailLabel: "Eneo au location maalum",
+    locationHint: "Chagua county, andika location unayotaka, au fanya vyote.",
+    locationPlaceholder: "mf. Kilimani, Juja au karibu na chuo",
     budget: "Budget ya mwezi ya roommate",
     moveIn: "Muda wa kuhamia",
     preference: "Unapendelea roommate wa aina gani?",
     lifestyleSection: "03 · Maisha yako",
     lifestyleTitle: "Wasaidie watu kuelewa lifestyle yako.",
-    lifestyleText: "Chagua kila kitu kinachokuelezea.",
+    lifestyleText: "Chagua kila kitu kinachokuelezea au ongeza yako mwenyewe.",
+    lifestylePlaceholder: "Ongeza kitu kinachoelezea lifestyle yako",
     interestsSection: "04 · Unachopenda",
     interestsTitle: "Unapenda kufanya nini?",
+    interestsText: "Chagua unachopenda au ongeza unachopenda mwenyewe.",
+    interestsPlaceholder: "Ongeza unachopenda",
+    addOption: "Ongeza",
     aboutSection: "05 · Kukuhusu",
     aboutTitle: "Eleza kidogo zaidi.",
     aboutPlaceholder:
@@ -160,16 +196,23 @@ const translations = {
     yourSchool: "Campus yako",
     housing: "02 · Housing preferences",
     housingTitle: "Unadai nini?",
-    preferredArea: "Area unadai",
-    selectArea: "Chagua area",
+    preferredArea: "County unadai",
+    selectArea: "Chagua county",
+    locationDetailLabel: "Area ama location exact",
+    locationHint: "Chagua county, type area unadai, ama zote mbili.",
+    locationPlaceholder: "mf. Kilimani, Juja ama karibu na campus",
     budget: "Roommate budget ya mwezi",
     moveIn: "Move-in time",
     preference: "Roommate preference",
     lifestyleSection: "03 · Vile unaishi",
     lifestyleTitle: "Wasaidie wasee wajue lifestyle yako.",
-    lifestyleText: "Select kila kitu inakurepresent.",
+    lifestyleText: "Chagua kila kitu inakurepresent ama ongeza yako mwenyewe.",
+    lifestylePlaceholder: "Ongeza kitu ya kuelezea lifestyle yako",
     interestsSection: "04 · Vitu unapenda",
     interestsTitle: "Unahustle na nini?",
+    interestsText: "Chagua vitu unapenda ama uongeze zako.",
+    interestsPlaceholder: "Ongeza kitu unapenda",
+    addOption: "Ongeza",
     aboutSection: "05 · Kukuhusu",
     aboutTitle: "Sema kidogo zaidi.",
     aboutPlaceholder:
@@ -254,6 +297,15 @@ function translateOption(
   );
 }
 
+function optionsWithCustomValues(options: string[], selected: string[]) {
+  return [
+    ...options,
+    ...selected.filter(
+      (item) => !options.some((option) => option.toLowerCase() === item.toLowerCase()),
+    ),
+  ];
+}
+
 export default function CreateRoommatePage() {
   const router = useRouter();
   const { language } = useLanguage();
@@ -264,7 +316,8 @@ export default function CreateRoommatePage() {
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
   const [school, setSchool] = useState("");
-  const [location, setLocation] = useState("");
+  const [county, setCounty] = useState("");
+  const [locationDetail, setLocationDetail] = useState("");
   const [budget, setBudget] = useState("");
   const [moveIn, setMoveIn] = useState("");
   const [preference, setPreference] = useState("");
@@ -275,9 +328,14 @@ export default function CreateRoommatePage() {
   const [about, setAbout] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
   const [lifestyle, setLifestyle] = useState<string[]>([]);
+  const [customInterest, setCustomInterest] = useState("");
+  const [customLifestyle, setCustomLifestyle] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [editingId, setEditingId] = useState("");
+  const preferredLocation = county
+    ? `${county}${locationDetail.trim() ? `, ${locationDetail.trim()}` : ""}`
+    : locationDetail.trim();
 
   useEffect(() => {
     const profileId = new URLSearchParams(window.location.search).get("edit");
@@ -294,7 +352,9 @@ export default function CreateRoommatePage() {
         setName(saved.name ?? "");
         setAge(String(saved.age ?? ""));
         setSchool(saved.school ?? "");
-        setLocation(saved.location ?? "");
+        const savedLocation = splitSavedLocation(saved.location ?? "");
+        setCounty(savedLocation.county);
+        setLocationDetail(savedLocation.detail);
         setBudget(String(saved.budget ?? ""));
         setMoveIn(saved.moveIn ?? "");
         setPreference(saved.preference ?? "");
@@ -322,6 +382,37 @@ export default function CreateRoommatePage() {
     );
   }
 
+  function addCustomOption(
+    value: string,
+    current: string[],
+    options: string[],
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+    clearInput: React.Dispatch<React.SetStateAction<string>>,
+  ) {
+    const trimmed = value.trim();
+    if (!trimmed || current.length >= 20 || trimmed.length > 100) return;
+
+    const normalized =
+      options.find((option) => option.toLowerCase() === trimmed.toLowerCase()) ?? trimmed;
+    if (current.some((item) => item.toLowerCase() === normalized.toLowerCase())) return;
+
+    setter([...current, normalized]);
+    clearInput("");
+  }
+
+  function handleCustomOptionKeyDown(
+    event: React.KeyboardEvent<HTMLInputElement>,
+    value: string,
+    current: string[],
+    options: string[],
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+    clearInput: React.Dispatch<React.SetStateAction<string>>,
+  ) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    addCustomOption(value, current, options, setter, clearInput);
+  }
+
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
   ) {
@@ -332,7 +423,7 @@ export default function CreateRoommatePage() {
       !name.trim() ||
       !age ||
       !school.trim() ||
-      !location ||
+      !preferredLocation ||
       !budget ||
       !moveIn ||
       !preference ||
@@ -370,7 +461,7 @@ export default function CreateRoommatePage() {
           name: name.trim(),
           age: Number(age),
           school: school.trim(),
-          location,
+          location: preferredLocation,
           budget: Number(budget),
           moveIn,
           preference,
@@ -548,23 +639,40 @@ export default function CreateRoommatePage() {
                 </label>
 
                 <select
-                  value={location}
-                  onChange={(event) =>
-                    setLocation(event.target.value)
-                  }
-                  required
+                  value={county}
+                  onChange={(event) => setCounty(event.target.value)}
+                  required={!locationDetail.trim()}
                   className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none transition focus:border-black"
                 >
                   <option value="">
                     {t.selectArea}
                   </option>
 
-                  {locationOptions.map((item) => (
+                  {kenyaCounties.map((item) => (
                     <option key={item} value={item}>
                       {item}
                     </option>
                   ))}
                 </select>
+
+                <p className="mt-2 text-xs leading-5 text-black/50">
+                  {t.locationHint}
+                </p>
+              </div>
+
+              <div>
+                <label className="text-sm font-bold">
+                  {t.locationDetailLabel}
+                </label>
+
+                <input
+                  value={locationDetail}
+                  onChange={(event) => setLocationDetail(event.target.value)}
+                  placeholder={t.locationPlaceholder}
+                  maxLength={120}
+                  required={!county}
+                  className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none transition focus:border-black"
+                />
               </div>
 
               <div>
@@ -643,7 +751,7 @@ export default function CreateRoommatePage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              {lifestyleOptions.map((item) => {
+              {optionsWithCustomValues(lifestyleOptions, lifestyle).map((item) => {
                 const selected = lifestyle.includes(item);
 
                 return (
@@ -671,6 +779,44 @@ export default function CreateRoommatePage() {
                 );
               })}
             </div>
+
+            <div className="mt-5 flex max-w-xl gap-3">
+              <input
+                type="text"
+                value={customLifestyle}
+                onChange={(event) => setCustomLifestyle(event.target.value)}
+                onKeyDown={(event) =>
+                  handleCustomOptionKeyDown(
+                    event,
+                    customLifestyle,
+                    lifestyle,
+                    lifestyleOptions,
+                    setLifestyle,
+                    setCustomLifestyle,
+                  )
+                }
+                placeholder={t.lifestylePlaceholder}
+                aria-label={t.lifestylePlaceholder}
+                maxLength={100}
+                className="min-w-0 flex-1 rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-3 outline-none transition focus:border-black"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  addCustomOption(
+                    customLifestyle,
+                    lifestyle,
+                    lifestyleOptions,
+                    setLifestyle,
+                    setCustomLifestyle,
+                  )
+                }
+                disabled={!customLifestyle.trim() || lifestyle.length >= 20}
+                className="rounded-2xl bg-black px-5 py-3 text-sm font-bold text-white transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t.addOption}
+              </button>
+            </div>
           </section>
 
           <div className="my-16 border-t border-black/10" />
@@ -684,10 +830,13 @@ export default function CreateRoommatePage() {
               <h2 className="mt-2 text-3xl font-black tracking-tight">
                 {t.interestsTitle}
               </h2>
+              <p className="mt-3 text-sm leading-6 text-black/50">
+                {t.interestsText}
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              {interestOptions.map((item) => {
+              {optionsWithCustomValues(interestOptions, interests).map((item) => {
                 const selected = interests.includes(item);
 
                 return (
@@ -714,6 +863,44 @@ export default function CreateRoommatePage() {
                   </button>
                 );
               })}
+            </div>
+
+            <div className="mt-5 flex max-w-xl gap-3">
+              <input
+                type="text"
+                value={customInterest}
+                onChange={(event) => setCustomInterest(event.target.value)}
+                onKeyDown={(event) =>
+                  handleCustomOptionKeyDown(
+                    event,
+                    customInterest,
+                    interests,
+                    interestOptions,
+                    setInterests,
+                    setCustomInterest,
+                  )
+                }
+                placeholder={t.interestsPlaceholder}
+                aria-label={t.interestsPlaceholder}
+                maxLength={100}
+                className="min-w-0 flex-1 rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-3 outline-none transition focus:border-black"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  addCustomOption(
+                    customInterest,
+                    interests,
+                    interestOptions,
+                    setInterests,
+                    setCustomInterest,
+                  )
+                }
+                disabled={!customInterest.trim() || interests.length >= 20}
+                className="rounded-2xl bg-black px-5 py-3 text-sm font-bold text-white transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t.addOption}
+              </button>
             </div>
           </section>
 
