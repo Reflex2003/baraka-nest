@@ -338,26 +338,16 @@ export default function AdminClient() {
         );
       }
 
-      if (file.size > 20 * 1024 * 1024) {
+      if (file.size > 4 * 1024 * 1024) {
         throw new Error(
-          "Avatar must be 20MB or smaller.",
+          "Avatar must be 4MB or smaller.",
         );
       }
 
       if (!adminProfile?.id) throw new Error("Admin profile is still loading. Try again.");
-      const blob = await uploadUserFile(file, { kind: "avatar", userId: adminProfile.id });
-      const response = await fetch("/api/uploads/register", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "avatar",
-          url: blob.url,
-          pathname: blob.pathname,
-          contentType: file.type,
-          size: file.size,
-        }),
-      });
+      const formData = new FormData();
+      formData.set("avatar", file);
+      const response = await fetch("/api/admin/avatar", { method: "POST", body: formData, credentials: "include" });
       const result = await response.json();
 
       if (!response.ok) {
@@ -370,7 +360,7 @@ export default function AdminClient() {
       setAdminProfile((current) => ({
         id: current?.id || "",
         name: current?.name || "Baraka Nest Admin",
-        image: result.avatarUrl || blob.url,
+        image: result.avatarUrl || null,
       }));
 
       setNotice("Admin profile picture updated.");

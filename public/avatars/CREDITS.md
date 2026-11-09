@@ -1,21 +1,18 @@
-Avatar image credits
-====================
+# Avatar image credits
 
-These specific character images are screenshots/crops sourced from NickRewind
-video material on Wikimedia Commons. Their Wikimedia Commons file pages list
-NickRewind as the author/source and Creative Commons Attribution 3.0 Unported
-(CC BY 3.0) as the license. The downloaded files are kept locally so the avatar
-selector does not depend on Wikimedia availability.
+The avatar artwork below was sourced from Wikimedia Commons. The listed files are made available under the stated Creative Commons licenses. Names identify the depicted character or artwork and do not imply endorsement by Nickelodeon or its parent company.
 
-Local file                     Source page
-spongebob-happy.png            https://commons.wikimedia.org/wiki/File:SpongeBob_SquarePants_character.png
-patrick-happy.png              https://commons.wikimedia.org/wiki/File:Patrick_Star_character.png
-squidward-calm.png              https://commons.wikimedia.org/wiki/File:Squidward_Tentacles_character.png
-sandy-confident.png             https://commons.wikimedia.org/wiki/File:Sandy_Cheeks_character.png
-mr-krabs.png                    https://commons.wikimedia.org/wiki/File:Mr_Krabs_character.png
-gary.png                        https://commons.wikimedia.org/wiki/File:Gary_(SpongeBob)_character.png
+| Local file | Source | Creator / license |
+| --- | --- | --- |
+| `spongebob-happy.png` | [SpongeBob SquarePants character](https://commons.wikimedia.org/wiki/File:SpongeBob_SquarePants_character.png) | NickRewind, CC BY 3.0 |
+| `patrick-happy.png` | [Patrick Star character](https://commons.wikimedia.org/wiki/File:Patrick_Star_character.png) | NickRewind, CC BY 3.0 |
+| `squidward-calm.png` | [Squidward Tentacles character](https://commons.wikimedia.org/wiki/File:Squidward_Tentacles_character.png) | NickRewind, CC BY 3.0 |
+| `sandy-confident.png` | [Sandy Cheeks character](https://commons.wikimedia.org/wiki/File:Sandy_Cheeks_character.png) | NickRewind, CC BY 3.0 |
+| `mr-krabs.png` | [Mr Krabs character](https://commons.wikimedia.org/wiki/File:Mr_Krabs_character.png) | NickRewind, CC BY 3.0 |
+| `gary.png` | [Gary (SpongeBob) character](https://commons.wikimedia.org/wiki/File:Gary_(SpongeBob)_character.png) | NickRewind, CC BY 3.0 |
+| `doodlebob.png` | [DoodleBob character](https://commons.wikimedia.org/wiki/File:DoodleBob_character.png) | NickRewind, CC BY 3.0 |
+| `spongebob-in-show.png` | [SpongeBob in-show appearance](https://commons.wikimedia.org/wiki/File:SpongeBob_-_In-show_appearance.png) | NickRewind, CC BY 3.0 |
+| `spongebob-help-wanted.png` | [SpongeBob Help Wanted](https://commons.wikimedia.org/wiki/File:SpongeBobHelpWanted.png) | NickRewind, CC BY 3.0 |
+| `spongebob-eyes.png` | [SpongeBob eyes](https://commons.wikimedia.org/wiki/File:SpongeBob_eyes.png) | The Salvator, CC BY-SA 4.0 |
 
-Attribution: NickRewind. License: https://creativecommons.org/licenses/by/3.0/
-The files were copied/cropped for Baraka Nest's profile avatar selector. These
-credits do not imply endorsement by Nickelodeon or its parent company. Character
-names and depictions may have additional trademark or other legal constraints.
+License links: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) and [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). The downloaded images are stored locally so profile selection does not depend on Wikimedia availability. Character designs and names may also be subject to trademark or other rights independent of these file licenses.

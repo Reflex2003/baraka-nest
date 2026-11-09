@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, type ChangeEvent } from "react";
 import { useLanguage } from "../language-context";
-import { uploadUserFile } from "@/lib/client-upload";
 import { profileAvatars } from "@/lib/profile-avatars";
 import ProfileImageViewer from "@/components/ProfileImageViewer";
 
@@ -27,7 +26,6 @@ type ProfileClientProps = {
   profile?: RoommateProfile;
   displayName: string;
   avatarUrl: string | null;
-  userId: string;
 };
 
 const translations = {
@@ -61,7 +59,7 @@ const translations = {
     changeAvatar: "Change Photo",
     removeAvatar: "Remove Photo",
     uploadAvatar: "Upload Photo",
-    avatarHint: "JPG, PNG, WEBP or GIF. Maximum 20MB.",
+    avatarHint: "JPG, PNG, WEBP, GIF or AVIF. Maximum 4MB.",
     uploading: "Uploading...",
     uploadSuccess: "Profile photo updated.",
     removeSuccess: "Profile photo removed.",
@@ -104,7 +102,7 @@ const translations = {
     changeAvatar: "Badilisha Picha",
     removeAvatar: "Ondoa Picha",
     uploadAvatar: "Weka Picha",
-    avatarHint: "JPG, PNG, WEBP au GIF. Maximum 20MB.",
+    avatarHint: "JPG, PNG, WEBP, GIF au AVIF. Maximum 4MB.",
     uploading: "Inapakiwa...",
     uploadSuccess: "Picha ya wasifu imesasishwa.",
     removeSuccess: "Picha ya wasifu imeondolewa.",
@@ -147,7 +145,7 @@ const translations = {
     changeAvatar: "Change Photo",
     removeAvatar: "Remove Photo",
     uploadAvatar: "Upload Photo",
-    avatarHint: "JPG, PNG, WEBP ama GIF. Maximum 20MB.",
+    avatarHint: "JPG, PNG, WEBP, GIF ama AVIF. Maximum 4MB.",
     uploading: "Uploading...",
     uploadSuccess: "Profile photo imeupdate.",
     removeSuccess: "Profile photo imeondolewa.",
@@ -166,7 +164,6 @@ export default function ProfileClient({
   profile,
   displayName,
   avatarUrl,
-  userId,
 }: ProfileClientProps) {
   const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -258,7 +255,7 @@ export default function ProfileClient({
       return;
     }
 
-    if (file.size > 20 * 1024 * 1024) {
+    if (file.size > 4 * 1024 * 1024) {
       setAvatarError(t.uploadError);
       event.target.value = "";
       return;
@@ -267,18 +264,9 @@ export default function ProfileClient({
     setUploading(true);
 
     try {
-      const blob = await uploadUserFile(file, { kind: "avatar", userId });
-      const response = await fetch("/api/uploads/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "avatar",
-          url: blob.url,
-          pathname: blob.pathname,
-          contentType: file.type,
-          size: file.size,
-        }),
-      });
+      const formData = new FormData();
+      formData.set("avatar", file);
+      const response = await fetch("/api/profile/avatar", { method: "POST", body: formData });
       const data = (await response.json()) as {
         success?: boolean;
         avatarUrl?: string;
@@ -455,7 +443,7 @@ export default function ProfileClient({
 
                 <div className="mt-6">
                   <Link
-                    href="/roommates/create"
+                    href={profile ? `/roommates/create?edit=${encodeURIComponent(profile.id)}` : "/roommates/create"}
                     className="inline-flex rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800"
                   >
                     {profile

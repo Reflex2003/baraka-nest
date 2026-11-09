@@ -25,6 +25,8 @@ const copy = {
     listing: "List your place for free",
     socials: "Connect with Admin",
     browse: "Browse student homes",
+    adminBio:
+      "Need a website, app or a whole system? I’m Ian, a young IT technician and full-stack developer. I build and customise digital solutions at student-friendly rates. Your idea can leave the notes app without your wallet filing a complaint. Let’s make it work.",
   },
 
   Swahili: {
@@ -35,6 +37,8 @@ const copy = {
     listing: "Tangaza nyumba bila malipo",
     socials: "Wasiliana na Admin",
     browse: "Tazama makazi ya wanafunzi",
+    adminBio:
+      "Unahitaji website, app ama system nzima? Mimi ni Ian, IT technician kijana na full-stack developer. Natengeneza na kurekebisha digital solutions kwa bei friendly. Idea yako inaweza kutoka kwa notes bila wallet yako kuanza kulalamika. Tuijenge iwe inafanya kazi.",
   },
 
   Sheng: {
@@ -45,6 +49,8 @@ const copy = {
     listing: "List keja free",
     socials: "Connect na Admin",
     browse: "Saka student homes",
+    adminBio:
+      "Unahitaji website, app ama system mzima? Mimi ni Ian, young IT technician na full-stack developer. Nabuild na kucustomize digital solutions kwa bei friendly. Idea yako itoke kwa notes bila wallet yako kuanza kulalamika. Tuifanye kazi.",
   },
 };
 
@@ -135,8 +141,7 @@ export default function ContactPage() {
                 </h2>
 
                 <p className="mt-2 max-w-xl text-sm leading-6 text-[#718077]">
-                  Reach us directly through WhatsApp, Instagram,
-                  Facebook, Telegram or email.
+                  {t.adminBio}
                 </p>
               </div>
             </div>

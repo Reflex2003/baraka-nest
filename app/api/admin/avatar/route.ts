@@ -5,6 +5,7 @@ import { auth } from "@/lib/better-auth";
 import { isSameOriginMutation } from "@/lib/request-security";
 import { isSuperAdminUserId } from "@/lib/admin";
 import { query } from "@/lib/db";
+import { getBlobWriteAuthOptions, hasBlobWriteAuth } from "@/lib/blob-auth";
 
 export const runtime = "nodejs";
 
@@ -54,18 +55,18 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!file.type.startsWith("image/")) {
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"].includes(file.type)) {
       return NextResponse.json(
         { error: "Only image files are allowed." },
         { status: 400 },
       );
     }
 
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize = 4 * 1024 * 1024;
 
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: "Avatar must be 5MB or smaller." },
+        { error: "Avatar must be 4MB or smaller." },
         { status: 400 },
       );
     }
@@ -85,9 +86,14 @@ export async function POST(request: Request) {
       : "jpg";
 
     const filename = `avatars/admin-${admin.id}-${Date.now()}.${safeExtension}`;
+    const blobAuth = getBlobWriteAuthOptions(request);
+    if (!hasBlobWriteAuth(blobAuth)) {
+      return NextResponse.json({ error: "Blob upload is not enabled on this Vercel deployment. Reconnect the Blob store with a read-write token, or redeploy with Vercel OIDC enabled." }, { status: 503 });
+    }
 
     const uploaded = await put(filename, file, {
       access: "public",
+      ...blobAuth,
     });
 
     await query(

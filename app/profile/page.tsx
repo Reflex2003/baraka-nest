@@ -62,7 +62,6 @@ export default async function ProfilePage() {
         profile={profile}
         displayName={displayName}
         avatarUrl={avatarUrl}
-        userId={session.user.id}
       />
     </>
   );

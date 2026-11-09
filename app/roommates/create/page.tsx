@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "../../navbar";
 import { useLanguage, type Language } from "../../language-context";
 import { profileAvatars } from "@/lib/profile-avatars";
@@ -88,6 +88,11 @@ const translations = {
     avatar: "Choose an avatar or upload a photo (optional)",
     gender: "Gender (optional)",
     customGender: "How do you identify? e.g. spoon or cow 😄",
+    edit: "Edit your",
+    editTitle: "roommate profile.",
+    saveChanges: "Save Changes",
+    saving: "Saving changes...",
+    loadingProfile: "Loading your saved details...",
   },
 
   Swahili: {
@@ -133,6 +138,11 @@ const translations = {
     avatar: "Chagua avatar au upload picha (si lazima)",
     gender: "Jinsia (si lazima)",
     customGender: "Unajitambulisha vipi? mfano spoon ama cow 😄",
+    edit: "Hariri",
+    editTitle: "profile yako ya roommate.",
+    saveChanges: "Hifadhi Mabadiliko",
+    saving: "Inahifadhi...",
+    loadingProfile: "Inapakia taarifa zako...",
   },
 
   Sheng: {
@@ -178,6 +188,11 @@ const translations = {
     avatar: "Chagua avatar ama upload picha (optional)",
     gender: "Gender (optional)",
     customGender: "Unajitambulisha aje? mfano spoon ama cow 😄",
+    edit: "Edit",
+    editTitle: "roommate profile yako.",
+    saveChanges: "Save Changes",
+    saving: "Inasave changes...",
+    loadingProfile: "Inaload details zako...",
   },
 };
 
@@ -262,6 +277,38 @@ export default function CreateRoommatePage() {
   const [lifestyle, setLifestyle] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState("");
+
+  useEffect(() => {
+    const profileId = new URLSearchParams(window.location.search).get("edit");
+    if (!profileId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/roommates/${encodeURIComponent(profileId)}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || !data.profile) throw new Error(data.error || "Could not load your saved profile.");
+        if (cancelled) return;
+        const saved = data.profile;
+        setEditingId(profileId);
+        setName(saved.name ?? "");
+        setAge(String(saved.age ?? ""));
+        setSchool(saved.school ?? "");
+        setLocation(saved.location ?? "");
+        setBudget(String(saved.budget ?? ""));
+        setMoveIn(saved.moveIn ?? "");
+        setPreference(saved.preference ?? "");
+        setAbout(saved.about ?? "");
+        setInterests(Array.isArray(saved.interests) ? saved.interests : []);
+        setLifestyle(Array.isArray(saved.lifestyle) ? saved.lifestyle : []);
+        if (saved.gender === "Male" || saved.gender === "Female") setGenderChoice(saved.gender);
+        else if (saved.gender) { setGenderChoice("Self-describe"); setCustomGender(saved.gender); }
+      } catch (loadError) {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Could not load your saved profile.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   function toggleOption(
     value: string,
@@ -314,8 +361,8 @@ export default function CreateRoommatePage() {
         if (!avatarResponse.ok) throw new Error(avatarResult.error || "Could not save selected avatar.");
       }
 
-      const response = await fetch("/api/roommates", {
-        method: "POST",
+      const response = await fetch(editingId ? `/api/roommates/${encodeURIComponent(editingId)}` : "/api/roommates", {
+        method: editingId ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -346,7 +393,7 @@ export default function CreateRoommatePage() {
         throw new Error(t.createdNoId);
       }
 
-      router.push(`/roommates/${data.id}`);
+      router.push(`/roommates/${data.id || editingId}`);
       router.refresh();
     } catch (submitError) {
       setError(
@@ -371,10 +418,10 @@ export default function CreateRoommatePage() {
             </p>
 
             <h1 className="mt-5 text-5xl font-black tracking-[-0.045em] sm:text-6xl lg:text-7xl">
-              {t.title}
+              {editingId ? t.edit : t.title}
               <br />
               <span className="text-black/30">
-                {t.titleMuted}
+                {editingId ? t.editTitle : t.titleMuted}
               </span>
             </h1>
 
@@ -710,9 +757,7 @@ export default function CreateRoommatePage() {
                 disabled={loading}
                 className="rounded-full bg-black px-8 py-4 text-sm font-black text-white transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading
-                  ? t.creating
-                  : t.create}
+                {loading ? (editingId ? t.saving : t.creating) : (editingId ? t.saveChanges : t.create)}
               </button>
             </div>
           </section>
