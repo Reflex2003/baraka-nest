@@ -60,6 +60,17 @@ let featureSchema: Promise<void> | undefined;
 
 export function ensureFeatureTables() {
   featureSchema ??= (async () => {
+    // The sample listings are bootstrap data only. Checking whether the table
+    // existed before this schema run prevents cold serverless instances from
+    // restoring any listing an administrator has deleted.
+    const existingHouseListingTable = await db.executeQuery(
+      CompiledQuery.raw(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+        ["house_listing"],
+      ),
+    );
+    const shouldSeedHouseListings = existingHouseListingTable.rows.length === 0;
+
     await db.schema
       .createTable("house_favorite")
       .ifNotExists()
@@ -380,49 +391,51 @@ export function ensureFeatureTables() {
       }
     }
 
-    for (const house of houses) {
-      await db.executeQuery(
-        CompiledQuery.raw(
-          `
-            INSERT OR IGNORE INTO house_listing (
-              id,
-              name,
-              location,
-              county,
-              distance,
-              price,
-              type,
-              rooms,
-              available,
-              rating,
-              featured,
-              accent,
-              description,
-              amenities,
-              lat,
-              lon
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `,
-          [
-            house.id,
-            house.name,
-            house.location,
-            house.county,
-            house.distance,
-            house.price,
-            house.type,
-            house.rooms,
-            house.available,
-            house.rating,
-            house.featured ? 1 : 0,
-            house.accent,
-            house.description,
-            JSON.stringify(house.amenities),
-            house.coordinates.lat,
-            house.coordinates.lon,
-          ],
-        ),
-      );
+    if (shouldSeedHouseListings) {
+      for (const house of houses) {
+        await db.executeQuery(
+          CompiledQuery.raw(
+            `
+              INSERT OR IGNORE INTO house_listing (
+                id,
+                name,
+                location,
+                county,
+                distance,
+                price,
+                type,
+                rooms,
+                available,
+                rating,
+                featured,
+                accent,
+                description,
+                amenities,
+                lat,
+                lon
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `,
+            [
+              house.id,
+              house.name,
+              house.location,
+              house.county,
+              house.distance,
+              house.price,
+              house.type,
+              house.rooms,
+              house.available,
+              house.rating,
+              house.featured ? 1 : 0,
+              house.accent,
+              house.description,
+              JSON.stringify(house.amenities),
+              house.coordinates.lat,
+              house.coordinates.lon,
+            ],
+          ),
+        );
+      }
     }
   })().catch((error: unknown) => {
     featureSchema = undefined;
