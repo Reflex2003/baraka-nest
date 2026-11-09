@@ -25,11 +25,88 @@ body {
 
 button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
 ::selection { background: #d8e7d8; color: #183b2c; }
+
+@layer base {
+  /* ---- Baraka Nest global interaction feedback ----------------------------
+     One shared press/hover layer for every clickable control. It uses only
+     transform/filter/opacity/background/shadow properties (never layout
+     properties), so nothing shifts while pressing. Existing utility classes
+     such as `transition-all`, `hover:-translate-y-1` or `active:scale-95`
+     keep precedence wherever they are already used. --------------------- */
+
+  /* Affordance: pointer cursor + smooth base transitions (desktop & touch). */
+  :where(
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    a[href]:not([aria-disabled="true"]),
+    input[type="button"]:not(:disabled),
+    input[type="submit"]:not(:disabled),
+    input[type="reset"]:not(:disabled)
+  ) {
+    cursor: pointer;
+    transition-property: transform, background-color, color, border-color,
+      box-shadow, opacity, filter;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Pressed state: immediate subtle scale-down + slight dim. :active fires
+     for mouse, pen and touch taps, giving mobile users clear feedback even
+     though touch devices have no reliable hover state. */
+  :where(
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    a[href]:not([aria-disabled="true"]),
+    input[type="button"]:not(:disabled),
+    input[type="submit"]:not(:disabled),
+    input[type="reset"]:not(:disabled)
+  ):active {
+    filter: brightness(0.92);
+    transform: scale(0.98);
+  }
+
+  /* Disabled controls: not clickable, no pointer cursor, no press cue. */
+  :where(
+    button:disabled,
+    [role="button"][aria-disabled="true"],
+    a[aria-disabled="true"],
+    input:disabled
+  ) {
+    cursor: default;
+  }
+
+  :where(
+    button:disabled,
+    [role="button"][aria-disabled="true"],
+    a[aria-disabled="true"]
+  ):active {
+    filter: none;
+    transform: none;
+  }
+
+  /* Keyboard focus stays clearly visible on every interactive control. */
+  :where(a, button, summary, [role="button"]):focus-visible {
+    outline: 3px solid var(--nest-orange, #e58b45);
+    outline-offset: 2px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* Keep a static pressed cue without movement for reduced-motion users. */
+  :where(
+    button,
+    [role="button"],
+    a[href],
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"]
+  ):active {
+    transform: none;
   }
 }
