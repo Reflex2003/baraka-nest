@@ -17,6 +17,8 @@ const translations = {
     dashboard: "Dashboard",
     profile: "Profile",
     contact: "Contact",
+    contactAdmin: "Contact admin",
+    more: "More",
     language: "Language",
     admin: "Admin Centre",
     logout: "Log out",
@@ -32,6 +34,8 @@ const translations = {
     dashboard: "Dashboard",
     profile: "Wasifu",
     contact: "Wasiliana",
+    contactAdmin: "Wasiliana na admin",
+    more: "Zaidi",
     language: "Lugha",
     admin: "Admin Centre",
     logout: "Toka",
@@ -47,6 +51,8 @@ const translations = {
     dashboard: "Dashboard",
     profile: "Profile",
     contact: "Contact",
+    contactAdmin: "Contact admin",
+    more: "More",
     language: "Lugha",
     admin: "Admin Centre",
     logout: "Toka",
@@ -66,7 +72,6 @@ const moreLinks = [
   { href: "/notifications", key: "notifications" },
   { href: "/dashboard", key: "dashboard" },
   { href: "/profile", key: "profile" },
-  { href: "/contact", key: "contact" },
 ] as const;
 
 export default function Navbar() {
@@ -75,6 +80,7 @@ export default function Navbar() {
   const { language, setLanguage } = useLanguage();
   const [canAdmin, setCanAdmin] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const t = translations[language];
 
   useEffect(() => {
@@ -117,13 +123,13 @@ export default function Navbar() {
             Baraka<span className="text-[#e58b45]">Nest.</span>
           </Link>
 
-          <nav aria-label="Main navigation" className="hidden items-center gap-1 lg:flex">
+          <nav aria-label="Main navigation" className="hidden items-center gap-0.5 xl:flex">
             {primaryLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 aria-current={active(link.href) ? "page" : undefined}
-                className={`rounded-full px-3.5 py-2.5 text-sm font-semibold transition-colors ${active(link.href) ? "bg-[#edf3ed] text-[#183b2c]" : "text-[#647067] hover:bg-[#f5f7f3] hover:text-[#183b2c]"}`}
+                className={`rounded-full px-3 py-2.5 text-[13px] font-semibold transition-colors ${active(link.href) ? "bg-[#edf3ed] text-[#183b2c]" : "text-[#647067] hover:bg-[#f5f7f3] hover:text-[#183b2c]"}`}
               >
                 {t[link.key]}
               </Link>
@@ -131,6 +137,12 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            <Link
+              href="/contact"
+              className="hidden xl:inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-[#e58b45] px-4 py-2.5 text-sm font-bold text-white shadow-[0_6px_18px_rgba(229,139,69,0.2)] transition hover:bg-[#cc7130]"
+            >
+              <span aria-hidden="true">✉</span>{t.contactAdmin}
+            </Link>
             {canAdmin && <Link href="/nest-control-panel" aria-label={t.admin} title={t.admin} className="whitespace-nowrap rounded-full bg-[#183b2c] px-2 py-1.5 text-[10px] font-bold text-white transition hover:bg-[#285640] sm:px-3 sm:py-2 sm:text-sm"><span className="sm:hidden">Admin</span><span className="hidden sm:inline">{t.admin}</span></Link>}
             <select
               value={language}
@@ -142,21 +154,37 @@ export default function Navbar() {
               <option value="Swahili">Kiswahili</option>
               <option value="Sheng">Sheng</option>
             </select>
-            <Link
-              href="/notifications"
-              aria-label={t.notifications}
-              className={`relative flex h-8 w-8 items-center justify-center rounded-full text-base transition-colors hover:bg-[#f1f4ef] sm:h-10 sm:w-10 sm:text-lg ${active("/notifications") ? "bg-[#edf3ed] text-[#183b2c]" : "text-[#526258]"}`}
-            >
-              ♧
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#e58b45]" />
-            </Link>
-            <Link
-              href="/dashboard"
-              aria-label={t.dashboard}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-[#183b2c] text-xs font-bold text-white transition hover:bg-[#285640] sm:h-10 sm:w-10 sm:text-sm"
-            >
-              B
-            </Link>
+            <div className="relative">
+              <button
+                type="button"
+                aria-expanded={moreOpen}
+                aria-haspopup="menu"
+                onClick={() => setMoreOpen((open) => !open)}
+                className={`flex h-9 items-center gap-1 rounded-full border border-[#e3e7df] px-3 text-xs font-bold transition hover:bg-[#f5f7f3] sm:h-10 sm:text-sm ${moreOpen ? "bg-[#edf3ed] text-[#183b2c]" : "text-[#526258]"}`}
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#183b2c] text-[10px] text-white">B</span>
+                <span className="hidden sm:inline">{t.more}</span>
+                <span aria-hidden="true">⌄</span>
+              </button>
+              {moreOpen && (
+                <div role="menu" className="absolute right-0 top-full z-[60] mt-2 w-56 rounded-2xl border border-[#e5ebe3] bg-white p-2 shadow-[0_18px_48px_rgba(24,59,44,0.16)]">
+                  {moreLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      role="menuitem"
+                      onClick={() => setMoreOpen(false)}
+                      className={`block rounded-xl px-3 py-2.5 text-sm font-semibold transition ${active(link.href) ? "bg-[#edf3ed] text-[#183b2c]" : "text-[#647067] hover:bg-[#f5f7f3] hover:text-[#183b2c]"}`}
+                    >
+                      {t[link.key]}
+                    </Link>
+                  ))}
+                  <Link href="/contact" role="menuitem" onClick={() => setMoreOpen(false)} className="mt-1 block rounded-xl bg-[#fff4e9] px-3 py-2.5 text-sm font-bold text-[#a95720] xl:hidden">
+                    {t.contactAdmin}
+                  </Link>
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={handleLogout}
@@ -170,16 +198,9 @@ export default function Navbar() {
           </div>
         </div>
 
-        <nav aria-label="Secondary navigation" className="hidden items-center justify-center gap-5 border-t border-[#f0f2ee] px-4 py-2.5 text-xs font-semibold text-[#728078] lg:flex">
-          {moreLinks.map((link) => (
-            <Link key={link.href} href={link.href} className={active(link.href) ? "text-[#183b2c]" : "transition hover:text-[#183b2c]"}>
-              {t[link.key]}
-            </Link>
-          ))}
-        </nav>
       </header>
 
-      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-[#e8ebe5] bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-8px_28px_rgba(24,59,44,0.08)] backdrop-blur-xl lg:hidden">
+      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-[#e8ebe5] bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 shadow-[0_-8px_28px_rgba(24,59,44,0.08)] backdrop-blur-xl xl:hidden">
         {primaryLinks.map((link) => (
           <Link
             key={link.href}
@@ -192,6 +213,9 @@ export default function Navbar() {
           </Link>
         ))}
       </nav>
+      <Link href="/contact" className="fixed bottom-[4.8rem] right-3 z-40 inline-flex items-center gap-2 rounded-full bg-[#e58b45] px-4 py-3 text-xs font-extrabold text-white shadow-[0_8px_24px_rgba(126,73,36,0.28)] transition hover:-translate-y-0.5 hover:bg-[#cc7130] xl:hidden sm:right-5 sm:px-5 sm:text-sm">
+        <span aria-hidden="true">✉</span>{t.contactAdmin}
+      </Link>
     </>
   );
 }

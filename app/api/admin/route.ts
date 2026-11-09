@@ -1,3 +1,4 @@
+import { del } from "@vercel/blob";
 import { auth } from "@/lib/better-auth";
 import { isSameOriginMutation } from "@/lib/request-security";
 import { isSuperAdminUserId } from "@/lib/admin";
@@ -6,6 +7,7 @@ import { roommateDb } from "@/lib/roommate-db";
 import { getHouseListings } from "@/lib/house-records";
 import { houseTypes } from "@/lib/house-types";
 import { isKenyanCounty } from "@/lib/kenya-counties";
+import { notifySavedSearchesForHouse } from "@/lib/house-alerts";
 
 async function authorized(request: Request) {
   const session = await auth.api.getSession({
@@ -153,6 +155,8 @@ export async function GET(request: Request) {
         location: house.location,
         county: house.county,
         price: house.price,
+        deposit: house.deposit ?? 0,
+        monthlyBills: house.monthlyBills ?? 0,
         type: house.type,
         rooms: house.rooms,
         available: house.available,
@@ -255,6 +259,8 @@ export async function POST(request: Request) {
         : "";
 
     const price = Number(body.price);
+    const deposit = Number(body.deposit ?? 0);
+    const monthlyBills = Number(body.monthlyBills ?? 0);
     const available = Number(body.available);
     const lat = Number(body.lat);
     const lon = Number(body.lon);
@@ -294,6 +300,12 @@ export async function POST(request: Request) {
       !Number.isInteger(price) ||
       price < 500 ||
       price > 1000000 ||
+      !Number.isInteger(deposit) ||
+      deposit < 0 ||
+      deposit > 1000000 ||
+      !Number.isInteger(monthlyBills) ||
+      monthlyBills < 0 ||
+      monthlyBills > 1000000 ||
       !Number.isInteger(available) ||
       available < 0 ||
       available > 1000 ||
@@ -336,11 +348,13 @@ export async function POST(request: Request) {
           description,
           amenities,
           lat,
-          lon
+          lon,
+          deposit,
+          monthly_bills
         )
         VALUES (
           ?, ?, ?, ?, ?, ?, ?, ?, ?, 'New', 0, 'light',
-          ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?
         )
       `)
       .run(
@@ -357,7 +371,23 @@ export async function POST(request: Request) {
         JSON.stringify(amenities),
         lat,
         lon,
+        deposit,
+        monthlyBills,
       );
+
+    try {
+      await notifySavedSearchesForHouse({
+        id,
+        name,
+        county,
+        location,
+        type,
+        price,
+        monthlyBills,
+      });
+    } catch (notificationError) {
+      console.error("Saved search notifications failed:", notificationError);
+    }
 
     return Response.json(
       { success: true, id },
@@ -609,6 +639,8 @@ export async function PATCH(request: Request) {
           : "";
 
       const price = Number(body.price);
+      const deposit = Number(body.deposit ?? 0);
+      const monthlyBills = Number(body.monthlyBills ?? 0);
       const available = Number(body.available);
       const lat = Number(body.lat);
       const lon = Number(body.lon);
@@ -650,6 +682,12 @@ export async function PATCH(request: Request) {
         !Number.isInteger(price) ||
         price < 500 ||
         price > 1000000 ||
+        !Number.isInteger(deposit) ||
+        deposit < 0 ||
+        deposit > 1000000 ||
+        !Number.isInteger(monthlyBills) ||
+        monthlyBills < 0 ||
+        monthlyBills > 1000000 ||
         !Number.isInteger(available) ||
         available < 0 ||
         available > 1000 ||
@@ -679,6 +717,8 @@ export async function PATCH(request: Request) {
             county = ?,
             distance = ?,
             price = ?,
+            deposit = ?,
+            monthly_bills = ?,
             type = ?,
             rooms = ?,
             available = ?,
@@ -695,6 +735,8 @@ export async function PATCH(request: Request) {
           county,
           distance || "Student-friendly location",
           price,
+          deposit,
+          monthlyBills,
           type,
           rooms,
           available,
@@ -771,32 +813,124 @@ export async function PATCH(request: Request) {
           ? body.id.trim()
           : "";
 
-      const result = await roommateDb
-        .prepare(
-          "DELETE FROM house_listing WHERE id = ?",
-        )
-        .run(houseId);
+      if (!houseId || houseId.length > 100) {
+        return Response.json(
+          { error: "Choose a valid house." },
+          { status: 400 },
+        );
+      }
 
-      if (Number(result.rowsAffected ?? 0) !== 1) {
+      const house = await roommateDb
+        .prepare(`
+          SELECT id
+          FROM house_listing
+          WHERE id = ?
+          LIMIT 1
+        `)
+        .get(houseId);
+
+      if (!house) {
         return Response.json(
           { error: "Listing not found." },
           { status: 404 },
         );
       }
 
+      const images = await roommateDb
+        .prepare(`
+          SELECT
+            id,
+            blob_path
+          FROM house_image
+          WHERE house_id = ?
+        `)
+        .all() as {
+          id: string;
+          blob_path: string;
+        }[];
+
+      const blobPaths = images
+        .map((image) => image.blob_path)
+        .filter(
+          (blobPath): blobPath is string =>
+            typeof blobPath === "string" &&
+            blobPath.trim().length > 0,
+        );
+
+      let blobCleanupFailures = 0;
+
+      if (blobPaths.length > 0) {
+        const cleanupResults = await Promise.allSettled(
+          blobPaths.map((blobPath) => del(blobPath)),
+        );
+
+        blobCleanupFailures = cleanupResults.filter(
+          (result) => result.status === "rejected",
+        ).length;
+
+        if (blobCleanupFailures > 0) {
+          console.error(
+            "Some house image blobs could not be deleted:",
+            cleanupResults
+              .filter(
+                (
+                  result,
+                ): result is PromiseRejectedResult =>
+                  result.status === "rejected",
+              )
+              .map((result) => result.reason),
+          );
+        }
+      }
+
       await roommateDb
-        .prepare(
-          "DELETE FROM house_control WHERE house_id = ?",
-        )
+        .prepare(`
+          DELETE FROM house_image
+          WHERE house_id = ?
+        `)
         .run(houseId);
 
       await roommateDb
-        .prepare(
-          "DELETE FROM house_favorite WHERE house_id = ?",
-        )
+        .prepare(`
+          DELETE FROM house_review
+          WHERE house_id = ?
+        `)
         .run(houseId);
 
-      return Response.json({ success: true });
+      await roommateDb
+        .prepare(`
+          DELETE FROM house_favorite
+          WHERE house_id = ?
+        `)
+        .run(houseId);
+
+      await roommateDb
+        .prepare(`
+          DELETE FROM house_control
+          WHERE house_id = ?
+        `)
+        .run(houseId);
+
+      const result = await roommateDb
+        .prepare(`
+          DELETE FROM house_listing
+          WHERE id = ?
+        `)
+        .run(houseId);
+
+      if (Number(result.rowsAffected ?? 0) !== 1) {
+        return Response.json(
+          { error: "Listing could not be deleted." },
+          { status: 500 },
+        );
+      }
+
+      return Response.json({
+        success: true,
+        id: houseId,
+        deletedImages: images.length,
+        blobCleanupFailures,
+      });
     }
 
     return Response.json(

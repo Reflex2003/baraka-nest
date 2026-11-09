@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { adminContactChannels } from "@/lib/contact";
 
 const icons: Record<string, React.ReactNode> = {
@@ -78,21 +77,6 @@ const brandStyles: Record<string, string> = {
 };
 
 export default function SocialIcons() {
-  const [copied, setCopied] = useState(false);
-
-  async function copyEmail() {
-    try {
-      await navigator.clipboard.writeText("ianmorgan107@gmail.com");
-      setCopied(true);
-
-      window.setTimeout(() => {
-        setCopied(false);
-      }, 1800);
-    } catch {
-      setCopied(false);
-    }
-  }
-
   return (
     <div className="flex flex-wrap items-center gap-2.5">
       {adminContactChannels.map((channel) => (
@@ -113,24 +97,6 @@ export default function SocialIcons() {
         </a>
       ))}
 
-      <button
-        type="button"
-        onClick={copyEmail}
-        aria-label="Copy admin email"
-        title="Copy admin email"
-        className="flex h-11 items-center gap-2 rounded-full border border-[#e1e7e0] bg-white px-4 text-xs font-extrabold text-[#183b2c] shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-[#183b2c] hover:bg-[#183b2c] hover:text-white hover:shadow-lg active:scale-95"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          className="h-4 w-4 fill-none stroke-current stroke-2"
-          aria-hidden="true"
-        >
-          <rect x="9" y="9" width="11" height="11" rx="2" />
-          <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" />
-        </svg>
-
-        {copied ? "Copied!" : "Copy Email"}
-      </button>
     </div>
   );
 }

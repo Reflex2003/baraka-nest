@@ -4,6 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, type ChangeEvent } from "react";
 import { useLanguage } from "../language-context";
+import { uploadUserFile } from "@/lib/client-upload";
+import { profileAvatars } from "@/lib/profile-avatars";
+import ProfileImageViewer from "@/components/ProfileImageViewer";
 
 type RoommateProfile = {
   id: string;
@@ -22,9 +25,9 @@ type RoommateProfile = {
 
 type ProfileClientProps = {
   profile?: RoommateProfile;
-  completion: number;
   displayName: string;
   avatarUrl: string | null;
+  userId: string;
 };
 
 const translations = {
@@ -39,6 +42,9 @@ const translations = {
     progress: "Profile Progress",
     progressSubtitle:
       "Complete your profile to help other students know you better.",
+    profilePhotoProgress: "Profile photo",
+    profilePhotoSet: "Avatar or photo added",
+    addAvatar: "Add an avatar or photo",
     createToStart: "Create your roommate profile to get started.",
     completeProfile: "Complete your profile",
     progressText: "Your profile is",
@@ -55,13 +61,16 @@ const translations = {
     changeAvatar: "Change Photo",
     removeAvatar: "Remove Photo",
     uploadAvatar: "Upload Photo",
-    avatarHint: "JPG, PNG, WEBP or GIF. Maximum 5MB.",
+    avatarHint: "JPG, PNG, WEBP or GIF. Maximum 20MB.",
     uploading: "Uploading...",
     uploadSuccess: "Profile photo updated.",
     removeSuccess: "Profile photo removed.",
     uploadError: "Could not update your profile photo.",
     removeError: "Could not remove your profile photo.",
     confirmRemove: "Remove your profile photo?",
+    chooseAvatar: "Or choose a character avatar",
+    avatarsLoading: "Avatar images will appear here when they are added.",
+    avatarSelected: "Avatar selected.",
     student: "Student",
     notSet: "Not set",
   },
@@ -76,6 +85,9 @@ const translations = {
     progress: "Maendeleo ya Wasifu",
     progressSubtitle:
       "Kamilisha wasifu wako ili wanafunzi wengine wakujue vizuri.",
+    profilePhotoProgress: "Picha ya wasifu",
+    profilePhotoSet: "Avatar au picha imewekwa",
+    addAvatar: "Weka avatar au picha",
     createToStart: "Tengeneza wasifu wako wa roommate kuanza.",
     completeProfile: "Kamilisha wasifu wako",
     progressText: "Wasifu wako uko",
@@ -92,13 +104,16 @@ const translations = {
     changeAvatar: "Badilisha Picha",
     removeAvatar: "Ondoa Picha",
     uploadAvatar: "Weka Picha",
-    avatarHint: "JPG, PNG, WEBP au GIF. Maximum 5MB.",
+    avatarHint: "JPG, PNG, WEBP au GIF. Maximum 20MB.",
     uploading: "Inapakiwa...",
     uploadSuccess: "Picha ya wasifu imesasishwa.",
     removeSuccess: "Picha ya wasifu imeondolewa.",
     uploadError: "Picha ya wasifu haikuweza kusasishwa.",
     removeError: "Picha ya wasifu haikuweza kuondolewa.",
     confirmRemove: "Ondoa picha yako ya wasifu?",
+    chooseAvatar: "Au chagua avatar ya character",
+    avatarsLoading: "Picha za avatars zitaonekana hapa zikishaongezwa.",
+    avatarSelected: "Avatar imechaguliwa.",
     student: "Mwanafunzi",
     notSet: "Haijawekwa",
   },
@@ -113,6 +128,9 @@ const translations = {
     progress: "Profile Progress",
     progressSubtitle:
       "Malizia profile yako ndio wasee wakujue better.",
+    profilePhotoProgress: "Profile photo",
+    profilePhotoSet: "Avatar ama picha iko",
+    addAvatar: "Weka avatar ama picha",
     createToStart: "Make roommate profile yako ndio uanze.",
     completeProfile: "Malizia profile yako",
     progressText: "Profile yako iko",
@@ -129,13 +147,16 @@ const translations = {
     changeAvatar: "Change Photo",
     removeAvatar: "Remove Photo",
     uploadAvatar: "Upload Photo",
-    avatarHint: "JPG, PNG, WEBP ama GIF. Maximum 5MB.",
+    avatarHint: "JPG, PNG, WEBP ama GIF. Maximum 20MB.",
     uploading: "Uploading...",
     uploadSuccess: "Profile photo imeupdate.",
     removeSuccess: "Profile photo imeondolewa.",
     uploadError: "Profile photo imefail kuupdate.",
     removeError: "Profile photo imefail kuondolewa.",
     confirmRemove: "Uko sure uondoe profile photo?",
+    chooseAvatar: "Ama choose character avatar",
+    avatarsLoading: "Avatar images zitaonekana hapa zikishawekwa.",
+    avatarSelected: "Avatar imechaguliwa.",
     student: "Student",
     notSet: "Haijawekwa",
   },
@@ -143,9 +164,9 @@ const translations = {
 
 export default function ProfileClient({
   profile,
-  completion,
   displayName,
   avatarUrl,
+  userId,
 }: ProfileClientProps) {
   const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -156,6 +177,8 @@ export default function ProfileClient({
   const [uploading, setUploading] = useState(false);
   const [avatarMessage, setAvatarMessage] = useState("");
   const [avatarError, setAvatarError] = useState("");
+  const [selectingAvatar, setSelectingAvatar] = useState(false);
+  const [unavailableAvatars, setUnavailableAvatars] = useState<string[]>([]);
 
   const languageKey =
     String(language) === "sw"
@@ -184,6 +207,38 @@ export default function ProfileClient({
   );
 
   const aboutComplete = Boolean(profile?.about);
+  const photoComplete = Boolean(currentAvatar);
+  const progressSections = [
+    basicComplete,
+    schoolComplete,
+    housingComplete,
+    aboutComplete,
+    photoComplete,
+  ];
+  const completion = Math.round(
+    (progressSections.filter(Boolean).length / progressSections.length) * 100,
+  );
+
+  async function chooseAvatar(avatarId: string) {
+    setSelectingAvatar(true);
+    setAvatarMessage("");
+    setAvatarError("");
+    try {
+      const response = await fetch("/api/profile/avatar/selection", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarId }),
+      });
+      const data = await response.json() as { success?: boolean; avatarUrl?: string; error?: string };
+      if (!response.ok || !data.success || !data.avatarUrl) throw new Error(data.error || t.uploadError);
+      setCurrentAvatar(data.avatarUrl);
+      setAvatarMessage(t.avatarSelected);
+    } catch (issue) {
+      setAvatarError(issue instanceof Error ? issue.message : t.uploadError);
+    } finally {
+      setSelectingAvatar(false);
+    }
+  }
 
   async function handleAvatarChange(
     event: ChangeEvent<HTMLInputElement>,
@@ -203,7 +258,7 @@ export default function ProfileClient({
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 20 * 1024 * 1024) {
       setAvatarError(t.uploadError);
       event.target.value = "";
       return;
@@ -212,14 +267,18 @@ export default function ProfileClient({
     setUploading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("avatar", file);
-
-      const response = await fetch("/api/profile/avatar", {
+      const blob = await uploadUserFile(file, { kind: "avatar", userId });
+      const response = await fetch("/api/uploads/register", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "avatar",
+          url: blob.url,
+          pathname: blob.pathname,
+          contentType: file.type,
+          size: file.size,
+        }),
       });
-
       const data = (await response.json()) as {
         success?: boolean;
         avatarUrl?: string;
@@ -232,8 +291,8 @@ export default function ProfileClient({
 
       setCurrentAvatar(data.avatarUrl);
       setAvatarMessage(t.uploadSuccess);
-    } catch {
-      setAvatarError(t.uploadError);
+    } catch (issue) {
+      setAvatarError(issue instanceof Error ? issue.message : t.uploadError);
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -293,18 +352,21 @@ export default function ProfileClient({
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
               <div className="flex shrink-0 flex-col items-center gap-3">
                 <div className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-emerald-100 text-3xl font-black text-emerald-700 ring-4 ring-emerald-50">
                   {currentAvatar ? (
-                    <Image
-                      src={currentAvatar}
-                      alt={`${displayName} profile`}
-                      fill
-                      sizes="96px"
-                      unoptimized
-                      className="object-cover"
-                    />
+                    <ProfileImageViewer src={currentAvatar} alt={`${displayName} profile picture`} className="absolute inset-0 h-full w-full" imageClassName="max-h-[90vh] max-w-[94vw]">
+                      <Image
+                        src={currentAvatar}
+                        alt={`${displayName} profile`}
+                        fill
+                        sizes="96px"
+                        unoptimized
+                        className="object-cover"
+                      />
+                    </ProfileImageViewer>
                   ) : (
                     initial
                   )}
@@ -403,6 +465,31 @@ export default function ProfileClient({
                 </div>
               </div>
             </div>
+            <div className="border-t border-slate-100 pt-5">
+              <h3 className="text-sm font-bold text-slate-800">{t.chooseAvatar}</h3>
+              <div className="mt-3 grid max-w-2xl grid-cols-3 gap-3 sm:grid-cols-6">
+                {profileAvatars.filter((avatar) => !unavailableAvatars.includes(avatar.id)).map((avatar) => (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    disabled={uploading || selectingAvatar}
+                    aria-label={`Choose ${avatar.name}`}
+                    aria-pressed={currentAvatar === avatar.src}
+                    onClick={() => void chooseAvatar(avatar.id)}
+                    className={`group rounded-2xl border-2 p-1.5 text-center transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 ${currentAvatar === avatar.src ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-100 bg-white hover:border-slate-200"}`}
+                  >
+                    <span className="relative block aspect-square overflow-hidden rounded-xl bg-slate-50">
+                      <Image src={avatar.src} alt={avatar.name} fill sizes="120px" className="object-cover" onError={() => setUnavailableAvatars((current) => current.includes(avatar.id) ? current : [...current, avatar.id])} />
+                    </span>
+                    <span className="mt-1 block truncate text-[10px] font-semibold text-slate-600 group-hover:text-emerald-700">{avatar.name}</span>
+                  </button>
+                ))}
+              </div>
+              {unavailableAvatars.length === profileAvatars.length && (
+                <p className="mt-3 text-xs text-slate-500">{t.avatarsLoading}</p>
+              )}
+            </div>
+            </div>
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -442,7 +529,7 @@ export default function ProfileClient({
           </section>
         </div>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {[
             {
               title: t.basicInfo,
@@ -467,6 +554,11 @@ export default function ProfileClient({
               title: t.aboutYou,
               complete: aboutComplete,
               details: profile?.about || t.addDetails,
+            },
+            {
+              title: t.profilePhotoProgress,
+              complete: photoComplete,
+              details: photoComplete ? t.profilePhotoSet : t.addAvatar,
             },
           ].map((item) => (
             <div

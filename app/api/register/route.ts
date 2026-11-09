@@ -1,5 +1,9 @@
 import { auth } from "@/lib/better-auth";
+import { query } from "@/lib/db";
 import { isSameOriginMutation } from "@/lib/request-security";
+
+const termsVersion = "2026-11-09";
+const privacyVersion = "2026-11-09";
 
 export async function POST(request: Request) {
   try {
@@ -24,6 +28,13 @@ export async function POST(request: Request) {
       .toLowerCase();
 
     const password = String(body.password ?? "");
+
+    if (body.acceptedPolicies !== true) {
+      return Response.json(
+        { success: false, message: "Accept the Terms of Service and acknowledge the Privacy Policy to create an account." },
+        { status: 400 },
+      );
+    }
 
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
       return Response.json(
@@ -67,6 +78,25 @@ export async function POST(request: Request) {
       },
       headers: request.headers,
     });
+
+    try {
+      await query(
+        `CREATE TABLE IF NOT EXISTS legal_acceptance (
+          user_id TEXT NOT NULL,
+          terms_version TEXT NOT NULL,
+          privacy_version TEXT NOT NULL,
+          accepted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (user_id, terms_version, privacy_version)
+        )`,
+      );
+      await query(
+        `INSERT INTO legal_acceptance (user_id, terms_version, privacy_version)
+         VALUES (?, ?, ?)`,
+        [result.user.id, termsVersion, privacyVersion],
+      );
+    } catch (acceptanceError) {
+      console.error("Legal acceptance record could not be saved:", acceptanceError);
+    }
 
     return Response.json(
       {

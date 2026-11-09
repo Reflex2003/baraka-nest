@@ -5,6 +5,8 @@ export type HouseListing = {
   county: string;
   distance: string;
   price: number;
+  deposit?: number;
+  monthlyBills?: number;
   type: string;
   rooms: string;
   available: number;

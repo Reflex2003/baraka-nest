@@ -4,8 +4,6 @@ import { LibsqlDialect } from "@libsql/kysely-libsql";
 import { CompiledQuery, Kysely, sql } from "kysely";
 import { houses } from "@/lib/houses";
 
-// Turso can occasionally resolve to an unreachable address first on
-// Windows/Node environments. Prefer IPv4 for stable libSQL connections.
 dns.setDefaultResultOrder("ipv4first");
 
 const databaseUrl = process.env.TURSO_DATABASE_URL;
@@ -201,29 +199,158 @@ export function ensureFeatureTables() {
       .columns(["user_id", "house_id"])
       .execute();
 
+    await db.schema
+      .createTable("house_image")
+      .ifNotExists()
+      .addColumn("id", "text", (column) => column.primaryKey().notNull())
+      .addColumn("house_id", "text", (column) => column.notNull())
+      .addColumn("url", "text", (column) => column.notNull())
+      .addColumn("blob_path", "text", (column) => column.notNull())
+      .addColumn("sort_order", "integer", (column) =>
+        column.notNull().defaultTo(0),
+      )
+      .addColumn("is_cover", "integer", (column) =>
+        column.notNull().defaultTo(0),
+      )
+      .addColumn("created_at", "text", (column) =>
+        column.notNull().defaultTo(sql`CURRENT_TIMESTAMP`),
+      )
+      .execute();
+
+    await db.schema
+      .createIndex("house_image_house_idx")
+      .ifNotExists()
+      .on("house_image")
+      .column("house_id")
+      .execute();
+
+    await db.schema
+      .createTable("house_saved_search")
+      .ifNotExists()
+      .addColumn("id", "text", (column) => column.primaryKey().notNull())
+      .addColumn("user_id", "text", (column) => column.notNull())
+      .addColumn("label", "text", (column) => column.notNull())
+      .addColumn("filters", "text", (column) => column.notNull())
+      .addColumn("created_at", "text", (column) =>
+        column.notNull().defaultTo(sql`CURRENT_TIMESTAMP`),
+      )
+      .execute();
+
+    await db.schema
+      .createIndex("house_saved_search_user_idx")
+      .ifNotExists()
+      .on("house_saved_search")
+      .column("user_id")
+      .execute();
+
+    await db.schema
+      .createTable("in_app_notification")
+      .ifNotExists()
+      .addColumn("id", "text", (column) => column.primaryKey().notNull())
+      .addColumn("user_id", "text", (column) => column.notNull())
+      .addColumn("type", "text", (column) => column.notNull())
+      .addColumn("title", "text", (column) => column.notNull())
+      .addColumn("body", "text", (column) => column.notNull())
+      .addColumn("href", "text", (column) => column.notNull())
+      .addColumn("created_at", "text", (column) =>
+        column.notNull().defaultTo(sql`CURRENT_TIMESTAMP`),
+      )
+      .addColumn("read_at", "text")
+      .execute();
+
+    await db.schema
+      .createIndex("in_app_notification_user_idx")
+      .ifNotExists()
+      .on("in_app_notification")
+      .columns(["user_id", "created_at"])
+      .execute();
+
+    await db.schema
+      .createTable("announcement")
+      .ifNotExists()
+      .addColumn("id", "text", (column) => column.primaryKey().notNull())
+      .addColumn("title", "text", (column) => column.notNull())
+      .addColumn("body", "text", (column) => column.notNull().defaultTo(""))
+      .addColumn("is_published", "integer", (column) => column.notNull().defaultTo(0))
+      .addColumn("created_by", "text", (column) => column.notNull())
+      .addColumn("created_at", "text", (column) =>
+        column.notNull().defaultTo(sql`CURRENT_TIMESTAMP`),
+      )
+      .addColumn("updated_at", "text", (column) =>
+        column.notNull().defaultTo(sql`CURRENT_TIMESTAMP`),
+      )
+      .execute();
+
+    await db.schema
+      .createTable("announcement_attachment")
+      .ifNotExists()
+      .addColumn("id", "text", (column) => column.primaryKey().notNull())
+      .addColumn("announcement_id", "text", (column) => column.notNull())
+      .addColumn("url", "text", (column) => column.notNull())
+      .addColumn("blob_path", "text", (column) => column.notNull())
+      .addColumn("file_name", "text", (column) => column.notNull())
+      .addColumn("content_type", "text", (column) => column.notNull())
+      .addColumn("size", "integer", (column) => column.notNull())
+      .addColumn("created_at", "text", (column) =>
+        column.notNull().defaultTo(sql`CURRENT_TIMESTAMP`),
+      )
+      .execute();
+
+    await db.schema
+      .createIndex("announcement_attachment_announcement_idx")
+      .ifNotExists()
+      .on("announcement_attachment")
+      .column("announcement_id")
+      .execute();
+
+    const listingColumns = await db.executeQuery(
+      CompiledQuery.raw("PRAGMA table_info(house_listing)", []),
+    );
+    const existingListingColumns = new Set(
+      listingColumns.rows.map((row) => String((row as { name?: unknown }).name)),
+    );
+
+    if (!existingListingColumns.has("deposit")) {
+      await db.schema
+        .alterTable("house_listing")
+        .addColumn("deposit", "integer", (column) =>
+          column.notNull().defaultTo(0),
+        )
+        .execute();
+    }
+
+    if (!existingListingColumns.has("monthly_bills")) {
+      await db.schema
+        .alterTable("house_listing")
+        .addColumn("monthly_bills", "integer", (column) =>
+          column.notNull().defaultTo(0),
+        )
+        .execute();
+    }
+
     for (const house of houses) {
       await db.executeQuery(
         CompiledQuery.raw(
           `
-          INSERT OR IGNORE INTO house_listing (
-            id,
-            name,
-            location,
-            county,
-            distance,
-            price,
-            type,
-            rooms,
-            available,
-            rating,
-            featured,
-            accent,
-            description,
-            amenities,
-            lat,
-            lon
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
+            INSERT OR IGNORE INTO house_listing (
+              id,
+              name,
+              location,
+              county,
+              distance,
+              price,
+              type,
+              rooms,
+              available,
+              rating,
+              featured,
+              accent,
+              description,
+              amenities,
+              lat,
+              lon
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
           [
             house.id,
             house.name,

@@ -33,8 +33,11 @@ const translations = {
     createAccount: "Create account",
     alreadyAccount: "Already have an account?",
     login: "Log in",
-    terms:
-      "By creating an account, you agree to use Baraka Nest responsibly and provide accurate information.",
+    agreePrefix: "I agree to the ",
+    agreeJoin: " and acknowledge the ",
+    termsLink: "Terms of Service",
+    privacyLink: "Privacy Policy",
+    policyRequired: "Please accept the Terms of Service and acknowledge the Privacy Policy to continue.",
     passwordsMismatch: "Your passwords do not match.",
     passwordRequirements:
       "Password must be at least 6 characters and contain a letter and a number.",
@@ -69,8 +72,11 @@ const translations = {
     createAccount: "Tengeneza akaunti",
     alreadyAccount: "Tayari una akaunti?",
     login: "Ingia",
-    terms:
-      "Kwa kutengeneza akaunti, unakubali kutumia Baraka Nest kwa uwajibikaji na kutoa taarifa sahihi.",
+    agreePrefix: "Ninakubali ",
+    agreeJoin: " na nathibitisha kuwa nimesoma ",
+    termsLink: "Masharti ya Matumizi",
+    privacyLink: "Sera ya Faragha",
+    policyRequired: "Tafadhali kubali Masharti ya Matumizi na uthibitishe kuwa umesoma Sera ya Faragha ili uendelee.",
     passwordsMismatch: "Password zako hazifanani.",
     passwordRequirements:
       "Password lazima iwe na angalau herufi 6, letter moja na number moja.",
@@ -105,8 +111,11 @@ const translations = {
     createAccount: "Create account",
     alreadyAccount: "Uko na account tayari?",
     login: "Log in",
-    terms:
-      "Ukicreate account, unakubali kutumia Baraka Nest poa na kuweka info legit.",
+    agreePrefix: "Nakubali ",
+    agreeJoin: " na nimesoma ",
+    termsLink: "Terms of Service",
+    privacyLink: "Privacy Policy",
+    policyRequired: "Kubali Terms of Service na uthibitishe umesoma Privacy Policy ndio uendelee.",
     passwordsMismatch: "Passwords zako hazifanyi match.",
     passwordRequirements:
       "Password lazima ikuwe na characters 6+, letter na number.",
@@ -125,6 +134,7 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
@@ -133,6 +143,11 @@ export default function RegisterPage() {
   async function handleRegister(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+
+    if (!acceptedPolicies) {
+      setError(t.policyRequired);
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError(t.passwordsMismatch);
@@ -159,6 +174,7 @@ export default function RegisterPage() {
         body: JSON.stringify({
           username,
           password,
+          acceptedPolicies,
         }),
       });
 
@@ -344,9 +360,25 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-xs leading-5 text-white/60 lg:border-black/[0.08] lg:bg-black/[0.02] lg:text-black/60">
+                <input
+                  type="checkbox"
+                  checked={acceptedPolicies}
+                  onChange={(event) => setAcceptedPolicies(event.target.checked)}
+                  required
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#e58b45]"
+                />
+                <span>
+                  {t.agreePrefix}
+                  <Link href="/terms" className="font-bold text-white underline underline-offset-2 hover:opacity-70 lg:text-black">{t.termsLink}</Link>
+                  {t.agreeJoin}
+                  <Link href="/privacy" className="font-bold text-white underline underline-offset-2 hover:opacity-70 lg:text-black">{t.privacyLink}</Link>.
+                </span>
+              </label>
+
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !acceptedPolicies}
                 className="h-13 w-full rounded-2xl bg-white px-4 text-sm font-semibold text-black transition hover:bg-white/85 disabled:cursor-not-allowed disabled:opacity-50 lg:bg-black lg:text-white lg:hover:bg-black/85"
               >
                 {loading ? t.creating : t.createAccount}
@@ -363,9 +395,6 @@ export default function RegisterPage() {
               </Link>
             </p>
 
-            <p className="mt-8 text-center text-xs leading-5 text-white/30 lg:text-black/30">
-              {t.terms}
-            </p>
           </div>
         </section>
       </div>

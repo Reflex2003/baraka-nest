@@ -2,8 +2,9 @@ import { ensureFeatureTables } from "@/lib/db";
 import { roommateDb } from "@/lib/roommate-db";
 import type { HouseListing } from "@/lib/houses";
 
-type HouseRow = Omit<HouseListing, "amenities" | "coordinates"> & {
+type HouseRow = Omit<HouseListing, "amenities" | "coordinates" | "monthlyBills"> & {
   amenities: string;
+  monthly_bills: number;
   lat: number;
   lon: number;
 };
@@ -26,6 +27,8 @@ export function formatHouseRow(row: HouseRow): HouseListing {
     county: row.county,
     distance: row.distance,
     price: Number(row.price),
+    deposit: Number(row.deposit ?? 0),
+    monthlyBills: Number(row.monthly_bills ?? 0),
     type: row.type,
     rooms: row.rooms,
     available: Number(row.available),

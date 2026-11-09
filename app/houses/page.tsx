@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "../navbar";
 import { useLanguage, type Language } from "../language-context";
@@ -38,6 +39,8 @@ const translations = {
     signInToSave: "Sign in to save homes to your list.",
     featured: "Featured",
     perMonth: "per month",
+    estimatedTotal: "Estimated monthly total",
+    deposit: "Deposit",
     available: "available",
     noHouses: "No houses found",
     noHousesText:
@@ -53,7 +56,11 @@ const translations = {
     houses: "Houses",
     roommates: "Roommates",
     login: "Log in",
-    listingLoadError: "Live listings could not be refreshed. Showing the latest cached sample while we reconnect.",
+    listingLoadError:
+      "Live listings could not be refreshed. Showing the latest cached sample while we reconnect.",
+    saveSearch: "Notify me about matching homes",
+    searchSaved: "Search saved. We’ll show matching new homes in notifications.",
+    saveSearchError: "Sign in to save this search.",
   },
 
   Swahili: {
@@ -84,6 +91,8 @@ const translations = {
     signInToSave: "Ingia ili kuhifadhi nyumba.",
     featured: "Imeangaziwa",
     perMonth: "kwa mwezi",
+    estimatedTotal: "Jumla ya makadirio kwa mwezi",
+    deposit: "Deposit",
     available: "zinapatikana",
     noHouses: "Hakuna nyumba zilizopatikana",
     noHousesText:
@@ -99,7 +108,11 @@ const translations = {
     houses: "Nyumba",
     roommates: "Roommates",
     login: "Ingia",
-    listingLoadError: "Hatukuweza kusasisha matangazo. Tunaonyesha yaliyohifadhiwa kwa muda tunapounganisha tena.",
+    listingLoadError:
+      "Hatukuweza kusasisha matangazo. Tunaonyesha yaliyohifadhiwa kwa muda tunapounganisha tena.",
+    saveSearch: "Nijulishe nyumba zinazolingana",
+    searchSaved: "Search imehifadhiwa. Nyumba mpya zinazolingana zitaonekana kwenye notifications.",
+    saveSearchError: "Ingia ili kuhifadhi search hii.",
   },
 
   Sheng: {
@@ -130,6 +143,8 @@ const translations = {
     signInToSave: "Log in u-save nyumba.",
     featured: "Featured",
     perMonth: "per month",
+    estimatedTotal: "Total ya makadirio kwa mwezi",
+    deposit: "Deposit",
     available: "ziko available",
     noHouses: "Hakuna nyumba imepatikana",
     noHousesText:
@@ -145,13 +160,22 @@ const translations = {
     houses: "Nyumba",
     roommates: "Roommates",
     login: "Log in",
-    listingLoadError: "Live listings hazikuload. Tunaonyesha sample ya karibuni tukiconnect tena.",
+    listingLoadError:
+      "Live listings hazikuload. Tunaonyesha sample ya karibuni tukiconnect tena.",
+    saveSearch: "Nijulishe nyumba zinazofit",
+    searchSaved: "Search imehifadhiwa. Nyumba mpya zinazofit zitaonekana kwa notifications.",
+    saveSearchError: "Log in ndio u-save hii search.",
   },
 };
 
 function formatPrice(price: number) {
   return `KSh ${price.toLocaleString()}`;
 }
+
+type HouseCover = {
+  url: string;
+  isCover: boolean;
+};
 
 export default function HousesPage() {
   const { language } = useLanguage();
@@ -166,48 +190,225 @@ export default function HousesPage() {
   const [view, setView] = useState<"list" | "map">("list");
   const [listings, setListings] = useState(mapListings);
   const [listingError, setListingError] = useState(false);
-  const [selectedMapHouseId, setSelectedMapHouseId] = useState(mapListings[0].id);
+  const [selectedMapHouseId, setSelectedMapHouseId] = useState(
+    mapListings[0]?.id ?? "",
+  );
   const [favorites, setFavorites] = useState<string[]>([]);
   const [savedOnly, setSavedOnly] = useState(false);
   const [favoriteError, setFavoriteError] = useState("");
   const [savingFavorite, setSavingFavorite] = useState("");
-  const [houseControls, setHouseControls] = useState<Record<string, { hidden: boolean; featured: boolean }>>({});
+  const [houseControls, setHouseControls] = useState<
+    Record<string, { hidden: boolean; featured: boolean }>
+  >({});
+  const [houseCovers, setHouseCovers] = useState<Record<string, HouseCover>>(
+    {},
+  );
+  const [alertBusy, setAlertBusy] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertError, setAlertError] = useState("");
+
+  async function saveCurrentSearch() {
+    setAlertBusy(true);
+    setAlertMessage("");
+    setAlertError("");
+    const maxPriceValue = maxPrice === "Under KSh 7,500"
+      ? 7500
+      : maxPrice === "Under KSh 10,000"
+        ? 10000
+        : maxPrice === "Under KSh 15,000"
+          ? 15000
+          : null;
+    try {
+      const response = await fetch("/api/houses/alerts", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filters: { location, type, maxPrice: maxPriceValue, query: search },
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || t.saveSearchError);
+      setAlertMessage(t.searchSaved);
+    } catch (issue) {
+      setAlertError(issue instanceof Error ? issue.message : t.saveSearchError);
+    } finally {
+      setAlertBusy(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
+
     Promise.all([
-      fetch("/api/houses/favorites", { credentials: "include" }).then(async (response) => response.ok ? response.json() : null),
-      fetch("/api/houses/controls", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null),
-      fetch("/api/houses", { cache: "no-store" }).then(async (response) => response.ok ? response.json() : null),
-    ]).then(([saved, controls, listingResult]) => {
-      if (!active) return;
-      if (Array.isArray(saved?.favorites)) setFavorites(saved.favorites);
-      if (controls?.controls && typeof controls.controls === "object") setHouseControls(controls.controls);
-      if (Array.isArray(listingResult?.houses)) {
-        setListings(listingResult.houses);
-        setListingError(false);
-      } else setListingError(true);
-    }).catch(() => { if (active) setListingError(true); });
-    return () => { active = false; };
+      fetch("/api/houses/favorites", {
+        credentials: "include",
+      }).then(async (response) =>
+        response.ok ? response.json() : null,
+      ),
+
+      fetch("/api/houses/controls", {
+        cache: "no-store",
+      }).then(async (response) =>
+        response.ok ? response.json() : null,
+      ),
+
+      fetch("/api/houses", {
+        cache: "no-store",
+      }).then(async (response) =>
+        response.ok ? response.json() : null,
+      ),
+    ])
+      .then(([saved, controls, listingResult]) => {
+        if (!active) return;
+
+        if (Array.isArray(saved?.favorites)) {
+          setFavorites(saved.favorites);
+        }
+
+        if (
+          controls?.controls &&
+          typeof controls.controls === "object"
+        ) {
+          setHouseControls(controls.controls);
+        }
+
+        if (Array.isArray(listingResult?.houses)) {
+          setListings(listingResult.houses);
+          setListingError(false);
+        } else {
+          setListingError(true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setListingError(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadHouseCovers() {
+      const currentListings = listings;
+
+      if (currentListings.length === 0) {
+        setHouseCovers({});
+        return;
+      }
+
+      const entries = await Promise.all(
+        currentListings.map(async (house) => {
+          try {
+            const response = await fetch(
+              `/api/houses/${encodeURIComponent(house.id)}/images`,
+              {
+                cache: "no-store",
+              },
+            );
+
+            if (!response.ok) {
+              return null;
+            }
+
+            const data = await response.json();
+
+            if (!Array.isArray(data?.images) || data.images.length === 0) {
+              return null;
+            }
+
+            const cover =
+              data.images.find(
+                (image: {
+                  url?: unknown;
+                  isCover?: unknown;
+                }) => image?.isCover === true && typeof image?.url === "string",
+              ) ??
+              data.images.find(
+                (image: { url?: unknown }) =>
+                  typeof image?.url === "string",
+              );
+
+            if (!cover || typeof cover.url !== "string") {
+              return null;
+            }
+
+            return [
+              house.id,
+              {
+                url: cover.url,
+                isCover: Boolean(cover.isCover),
+              },
+            ] as const;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (!active) return;
+
+      const nextCovers: Record<string, HouseCover> = {};
+
+      for (const entry of entries) {
+        if (!entry) continue;
+        nextCovers[entry[0]] = entry[1];
+      }
+
+      setHouseCovers(nextCovers);
+    }
+
+    void loadHouseCovers();
+
+    return () => {
+      active = false;
+    };
+  }, [listings]);
 
   async function toggleFavorite(houseId: string) {
     const save = !favorites.includes(houseId);
+
     setFavoriteError("");
     setSavingFavorite(houseId);
+
     try {
       const response = await fetch("/api/houses/favorites", {
         method: save ? "POST" : "DELETE",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ houseId }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          houseId,
+        }),
       });
+
       const data = await response.json();
-      if (response.status === 401) throw new Error("sign-in");
-      if (!response.ok) throw new Error(data.error || "failed");
-      setFavorites((current) => save ? [...current, houseId] : current.filter((id) => id !== houseId));
+
+      if (response.status === 401) {
+        throw new Error("sign-in");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || "failed");
+      }
+
+      setFavorites((current) =>
+        save
+          ? [...current, houseId]
+          : current.filter((id) => id !== houseId),
+      );
     } catch (error) {
-      setFavoriteError(error instanceof Error && error.message === "sign-in" ? t.signInToSave : t.signInToSave);
+      setFavoriteError(
+        error instanceof Error && error.message === "sign-in"
+          ? t.signInToSave
+          : t.signInToSave,
+      );
     } finally {
       setSavingFavorite("");
     }
@@ -246,13 +447,15 @@ export default function HousesPage() {
         house.county.toLowerCase() === location.toLowerCase();
 
       const matchesType =
-        type === "All types" || canonicalHouseType(house.type) === type;
+        type === "All types" ||
+        canonicalHouseType(house.type) === type;
 
       const matchesPrice =
         maxPrice === "Any price" ||
-        (maxPrice === "Under KSh 7,500" && house.price < 7500) ||
-        (maxPrice === "Under KSh 10,000" && house.price < 10000) ||
-        (maxPrice === "Under KSh 15,000" && house.price < 15000);
+        (maxPrice === "Under KSh 7,500" && house.price + (house.monthlyBills ?? 0) < 7500) ||
+        (maxPrice === "Under KSh 10,000" && house.price + (house.monthlyBills ?? 0) < 10000) ||
+        (maxPrice === "Under KSh 15,000" && house.price + (house.monthlyBills ?? 0) < 15000);
+
       const notHidden = !houseControls[house.id]?.hidden;
 
       return (
@@ -264,7 +467,16 @@ export default function HousesPage() {
         (!savedOnly || favorites.includes(house.id))
       );
     });
-  }, [search, location, type, maxPrice, savedOnly, favorites, houseControls, listings]);
+  }, [
+    search,
+    location,
+    type,
+    maxPrice,
+    savedOnly,
+    favorites,
+    houseControls,
+    listings,
+  ]);
 
   return (
     <main className="min-h-screen bg-[#fafafa] text-[#111111]">
@@ -379,12 +591,37 @@ export default function HousesPage() {
                 ))}
               </select>
             </div>
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
+              {alertMessage && <span role="status" className="text-xs font-semibold text-[#285640]">{alertMessage}</span>}
+              {alertError && (
+                <span role="alert" className="text-xs font-semibold text-[#9b3a30]">
+                  {alertError}{" "}
+                  <Link href="/login" className="underline">{t.login}</Link>
+                </span>
+              )}
+              <button
+                type="button"
+                disabled={alertBusy}
+                onClick={() => void saveCurrentSearch()}
+                className="min-h-10 rounded-full border border-[#dce5db] bg-white px-4 text-xs font-bold text-[#355342] hover:bg-[#f3f6f1] disabled:opacity-50"
+              >
+                {alertBusy ? "Saving…" : t.saveSearch}
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-6 py-14 sm:px-8 lg:px-10 lg:py-20">
-        {listingError && <p role="status" className="mb-5 rounded-2xl border border-[#ead9c7] bg-[#fff8f0] px-4 py-3 text-sm leading-6 text-[#82532f]">{t.listingLoadError}</p>}
+        {listingError && (
+          <p
+            role="status"
+            className="mb-5 rounded-2xl border border-[#ead9c7] bg-[#fff8f0] px-4 py-3 text-sm leading-6 text-[#82532f]"
+          >
+            {t.listingLoadError}
+          </p>
+        )}
+
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/30">
@@ -397,15 +634,40 @@ export default function HousesPage() {
           </div>
 
           <div className="flex items-center justify-between gap-3 sm:justify-end">
-            <div className="text-sm text-black/40">{t.updated}</div>
-              <button type="button" aria-pressed={savedOnly} onClick={() => setSavedOnly((value) => !value)}
-                className={`min-h-10 rounded-full border px-3 text-xs font-bold transition ${savedOnly ? "border-[#183b2c] bg-[#edf3ed] text-[#183b2c]" : "border-[#e1e8df] bg-white text-[#69766d] hover:bg-[#f3f6f1]"}`}>
-                {savedOnly ? t.allHomes : `♡ ${t.savedOnly}`}
-              </button>
-            <div role="group" aria-label="Housing view" className="flex rounded-full border border-[#e1e8df] bg-white p-1">
+            <div className="text-sm text-black/40">
+              {t.updated}
+            </div>
+
+            <button
+              type="button"
+              aria-pressed={savedOnly}
+              onClick={() => setSavedOnly((value) => !value)}
+              className={`min-h-10 rounded-full border px-3 text-xs font-bold transition ${
+                savedOnly
+                  ? "border-[#183b2c] bg-[#edf3ed] text-[#183b2c]"
+                  : "border-[#e1e8df] bg-white text-[#69766d] hover:bg-[#f3f6f1]"
+              }`}
+            >
+              {savedOnly ? t.allHomes : `♡ ${t.savedOnly}`}
+            </button>
+
+            <div
+              role="group"
+              aria-label="Housing view"
+              className="flex rounded-full border border-[#e1e8df] bg-white p-1"
+            >
               {(["list", "map"] as const).map((mode) => (
-                <button key={mode} type="button" aria-pressed={view === mode} onClick={() => setView(mode)}
-                  className={`min-h-9 rounded-full px-3 text-xs font-bold transition ${view === mode ? "bg-[#183b2c] text-white" : "text-[#69766d] hover:bg-[#f3f6f1]"}`}>
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={view === mode}
+                  onClick={() => setView(mode)}
+                  className={`min-h-9 rounded-full px-3 text-xs font-bold transition ${
+                    view === mode
+                      ? "bg-[#183b2c] text-white"
+                      : "text-[#69766d] hover:bg-[#f3f6f1]"
+                  }`}
+                >
                   {mode === "list" ? t.list : t.map}
                 </button>
               ))}
@@ -413,161 +675,280 @@ export default function HousesPage() {
           </div>
         </div>
 
-        {view === "map" && filteredHouses.length > 0 && (() => {
-          const selected = filteredHouses.find((house) => house.id === selectedMapHouseId) ?? filteredHouses[0];
-          const mapListing = selected;
-          return (
-            <div className="mt-7 grid overflow-hidden rounded-[26px] border border-[#e3e9e1] bg-white shadow-sm lg:grid-cols-[1.25fr_.75fr]">
-              <iframe title={`${selected.name} map`} src={getMapEmbedUrl(mapListing)} loading="lazy" referrerPolicy="no-referrer"
-                className="h-[300px] w-full border-0 sm:h-[380px]" />
-              <div className="flex flex-col p-5 sm:p-6">
-                <p className="text-xs font-bold uppercase tracking-[0.13em] text-[#87938a]">{t.mapTitle}</p>
-                <h3 className="mt-2 text-lg font-extrabold text-[#183b2c]">{selected.name}</h3>
-                <p className="mt-1 text-sm text-[#748078]">{selected.location}</p>
-                <p className="mt-4 text-xl font-extrabold text-[#26352b]">{formatPrice(selected.price)} <span className="text-xs font-medium text-[#849087]">{t.perMonth}</span></p>
-                <p className="mt-auto pt-4 text-xs leading-5 text-[#8a958e]">{t.mapNote}</p>
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                  {filteredHouses.map((house) => (
-                    <button key={house.id} type="button" aria-pressed={selected.id === house.id} onClick={() => setSelectedMapHouseId(house.id)}
-                      className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold ${selected.id === house.id ? "bg-[#edf3ed] text-[#183b2c]" : "bg-[#f5f7f3] text-[#69766d]"}`}>
-                      {house.location}
-                    </button>
-                  ))}
-                </div>
-                <Link href={`/houses/${selected.id}`} className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full bg-[#183b2c] px-5 text-sm font-bold text-white hover:bg-[#285640]">{t.viewHouse}</Link>
-              </div>
-            </div>
-          );
-        })()}
+        {view === "map" &&
+          filteredHouses.length > 0 &&
+          (() => {
+            const selected =
+              filteredHouses.find(
+                (house) => house.id === selectedMapHouseId,
+              ) ?? filteredHouses[0];
 
-        {favoriteError && <p role="status" className="mt-4 rounded-xl bg-[#fff7ed] px-4 py-3 text-sm font-medium text-[#8f5421]">{favoriteError} <Link href="/login" className="font-bold underline">{t.login}</Link></p>}
+            const mapListing = selected;
+
+            return (
+              <div className="mt-7 grid overflow-hidden rounded-[26px] border border-[#e3e9e1] bg-white shadow-sm lg:grid-cols-[1.25fr_.75fr]">
+                <iframe
+                  title={`${selected.name} map`}
+                  src={getMapEmbedUrl(mapListing)}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className="h-[300px] w-full border-0 sm:h-[380px]"
+                />
+
+                <div className="flex flex-col p-5 sm:p-6">
+                  <p className="text-xs font-bold uppercase tracking-[0.13em] text-[#87938a]">
+                    {t.mapTitle}
+                  </p>
+
+                  <h3 className="mt-2 text-lg font-extrabold text-[#183b2c]">
+                    {selected.name}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-[#748078]">
+                    {selected.location}
+                  </p>
+
+                  <p className="mt-4 text-xl font-extrabold text-[#26352b]">
+                    {formatPrice(selected.price)}{" "}
+                    <span className="text-xs font-medium text-[#849087]">
+                      {t.perMonth}
+                    </span>
+                  </p>
+
+                  <p className="mt-auto pt-4 text-xs leading-5 text-[#8a958e]">
+                    {t.mapNote}
+                  </p>
+
+                  <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                    {filteredHouses.map((house) => (
+                      <button
+                        key={house.id}
+                        type="button"
+                        aria-pressed={selected.id === house.id}
+                        onClick={() =>
+                          setSelectedMapHouseId(house.id)
+                        }
+                        className={`shrink-0 rounded-full px-3 py-2 text-xs font-semibold ${
+                          selected.id === house.id
+                            ? "bg-[#edf3ed] text-[#183b2c]"
+                            : "bg-[#f5f7f3] text-[#69766d]"
+                        }`}
+                      >
+                        {house.location}
+                      </button>
+                    ))}
+                  </div>
+
+                  <Link
+                    href={`/houses/${selected.id}`}
+                    className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full bg-[#183b2c] px-5 text-sm font-bold text-white hover:bg-[#285640]"
+                  >
+                    {t.viewHouse}
+                  </Link>
+                </div>
+              </div>
+            );
+          })()}
+
+        {favoriteError && (
+          <p
+            role="status"
+            className="mt-4 rounded-xl bg-[#fff7ed] px-4 py-3 text-sm font-medium text-[#8f5421]"
+          >
+            {favoriteError}{" "}
+            <Link
+              href="/login"
+              className="font-bold underline"
+            >
+              {t.login}
+            </Link>
+          </p>
+        )}
 
         {filteredHouses.length > 0 ? (
           <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {filteredHouses.map((house) => {
               const details = house;
               const isSaved = favorites.includes(house.id);
-              const isFeatured = houseControls[house.id]?.featured ?? house.featured;
+              const isFeatured =
+                houseControls[house.id]?.featured ??
+                house.featured;
+
+              const cover = houseCovers[house.id];
+
               return (
-              <article
-                key={house.id}
-                className="group relative overflow-hidden rounded-[28px] border border-[#e3e9e1] bg-white transition duration-300 hover:-translate-y-1 hover:border-[#cdd9ca] hover:shadow-xl"
-              >
-              <Link
-                href={`/houses/${house.id}`}
-                className="block"
-              >
-                <div
-                  className={`relative h-60 overflow-hidden ${
-                    house.accent === "dark"
-                      ? "bg-[#111111]"
-                      : house.accent === "soft"
-                        ? "bg-[#e9e9e6]"
-                        : "bg-[#deded9]"
-                  }`}
+                <article
+                  key={house.id}
+                  className="group relative overflow-hidden rounded-[28px] border border-[#e3e9e1] bg-white transition duration-300 hover:-translate-y-1 hover:border-[#cdd9ca] hover:shadow-xl"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.12] via-transparent to-black/[0.12]" />
-
-                  <div className="absolute left-5 top-5 flex gap-2">
-                    {isFeatured && (
-                      <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-black">
-                        {t.featured}
-                      </span>
-                    )}
-
-                    <span
-                      className={`rounded-full border px-3 py-1.5 text-[10px] font-medium ${
+                  <Link
+                    href={`/houses/${house.id}`}
+                    className="block"
+                  >
+                    <div
+                      className={`relative h-60 overflow-hidden ${
                         house.accent === "dark"
-                          ? "border-white/15 bg-white/10 text-white/65"
-                          : "border-black/10 bg-white/70 text-black/50"
+                          ? "bg-[#111111]"
+                          : house.accent === "soft"
+                            ? "bg-[#e9e9e6]"
+                            : "bg-[#deded9]"
                       }`}
                     >
-                      {house.type}
-                    </span>
-                  </div>
+                      {cover?.url ? (
+                        <>
+                          <Image
+                            src={cover.url}
+                            alt={house.name}
+                            fill
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                            unoptimized
+                            className="object-cover transition duration-500 group-hover:scale-105"
+                          />
 
-                  <div
-                    className={`absolute bottom-5 left-5 text-xs ${
-                      house.accent === "dark"
-                        ? "text-white/40"
-                        : "text-black/35"
-                    }`}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10" />
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.12] via-transparent to-black/[0.12]" />
+                      )}
+
+                      <div className="absolute left-5 top-5 flex gap-2">
+                        {isFeatured && (
+                          <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-black">
+                            {t.featured}
+                          </span>
+                        )}
+
+                        <span
+                          className={`rounded-full border px-3 py-1.5 text-[10px] font-medium ${
+                            cover?.url
+                              ? "border-white/20 bg-black/25 text-white"
+                              : house.accent === "dark"
+                                ? "border-white/15 bg-white/10 text-white/65"
+                                : "border-black/10 bg-white/70 text-black/50"
+                          }`}
+                        >
+                          {house.type}
+                        </span>
+                      </div>
+
+                      <div
+                        className={`absolute bottom-5 left-5 text-xs ${
+                          cover?.url
+                            ? "text-white/70"
+                            : house.accent === "dark"
+                              ? "text-white/40"
+                              : "text-black/35"
+                        }`}
+                      >
+                        BARAKA NEST
+                      </div>
+
+                      <div
+                        className={`absolute bottom-5 right-5 text-2xl transition-transform duration-300 group-hover:translate-x-1 ${
+                          cover?.url
+                            ? "text-white/75"
+                            : house.accent === "dark"
+                              ? "text-white/50"
+                              : "text-black/30"
+                        }`}
+                      >
+                        →
+                      </div>
+                    </div>
+
+                    <div className="p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="text-lg font-semibold tracking-[-0.025em]">
+                            {house.name}
+                          </h3>
+
+                          <p className="mt-1.5 text-sm text-black/45">
+                            {house.location}
+                          </p>
+                        </div>
+
+                        <div className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-medium">
+                          ★ {house.rating}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 flex items-end justify-between">
+                        <div>
+                          <p className="text-xl font-semibold tracking-tight">
+                            {formatPrice(house.price)}
+                          </p>
+
+                          <p className="mt-1 text-xs text-black/35">
+                            {t.perMonth}
+                          </p>
+                          {(house.monthlyBills ?? 0) > 0 && (
+                            <p className="mt-2 text-xs font-semibold text-[#526258]">
+                              {t.estimatedTotal}: {formatPrice(house.price + (house.monthlyBills ?? 0))}
+                            </p>
+                          )}
+                          {(house.deposit ?? 0) > 0 && (
+                            <p className="mt-1 text-[11px] text-black/40">
+                              {t.deposit}: {formatPrice(house.deposit ?? 0)}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-sm font-medium">
+                            {house.rooms}
+                          </p>
+
+                          <p className="mt-1 text-xs text-black/35">
+                            {house.available} {t.available}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 border-t border-black/[0.07] pt-4">
+                        <span className="text-xs text-black/40">
+                          {house.distance}
+                        </span>
+                      </div>
+
+                      {details && (
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {details.amenities
+                            .slice(0, 3)
+                            .map((amenity) => (
+                              <span
+                                key={amenity}
+                                className="rounded-full bg-[#f3f6f1] px-2.5 py-1 text-[10px] font-semibold text-[#65746a]"
+                              >
+                                {amenity}
+                              </span>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+
+                  <button
+                    type="button"
+                    disabled={savingFavorite === house.id}
+                    aria-label={
+                      isSaved ? t.saved : t.save
+                    }
+                    aria-pressed={isSaved}
+                    onClick={() =>
+                      void toggleFavorite(house.id)
+                    }
+                    className="absolute right-4 top-4 z-10 flex h-11 min-w-11 items-center justify-center rounded-full border border-white/70 bg-white/95 px-3 text-lg text-[#183b2c] shadow-sm transition hover:scale-105 disabled:opacity-60"
                   >
-                    BARAKA NEST
-                  </div>
-
-                  <div
-                    className={`absolute bottom-5 right-5 text-2xl transition-transform duration-300 group-hover:translate-x-1 ${
-                      house.accent === "dark"
-                        ? "text-white/50"
-                        : "text-black/30"
-                    }`}
-                  >
-                    →
-                  </div>
-                </div>
-
-                <div className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-semibold tracking-[-0.025em]">
-                        {house.name}
-                      </h3>
-
-                      <p className="mt-1.5 text-sm text-black/45">
-                        {house.location}
-                      </p>
-                    </div>
-
-                    <div className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-medium">
-                      ★ {house.rating}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 flex items-end justify-between">
-                    <div>
-                      <p className="text-xl font-semibold tracking-tight">
-                        {formatPrice(house.price)}
-                      </p>
-
-                      <p className="mt-1 text-xs text-black/35">
-                        {t.perMonth}
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="text-sm font-medium">
-                        {house.rooms}
-                      </p>
-
-                      <p className="mt-1 text-xs text-black/35">
-                        {house.available} {t.available}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 border-t border-black/[0.07] pt-4">
-                    <span className="text-xs text-black/40">
-                      {house.distance}
-                    </span>
-                  </div>
-                  {details && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {details.amenities.slice(0, 3).map((amenity) => (
-                        <span key={amenity} className="rounded-full bg-[#f3f6f1] px-2.5 py-1 text-[10px] font-semibold text-[#65746a]">{amenity}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Link>
-              <button type="button" disabled={savingFavorite === house.id}
-                aria-label={isSaved ? t.saved : t.save} aria-pressed={isSaved}
-                onClick={() => void toggleFavorite(house.id)}
-                className="absolute right-4 top-4 z-10 flex h-11 min-w-11 items-center justify-center rounded-full border border-white/70 bg-white/95 px-3 text-lg text-[#183b2c] shadow-sm transition hover:scale-105 disabled:opacity-60">
-                {savingFavorite === house.id ? "…" : isSaved ? "♥" : "♡"}
-              </button>
-              </article>
-            );})}
+                    {savingFavorite === house.id
+                      ? "…"
+                      : isSaved
+                        ? "♥"
+                        : "♡"}
+                  </button>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div className="mt-10 rounded-[28px] border border-black/10 bg-white px-6 py-20 text-center">
@@ -617,21 +998,32 @@ export default function HousesPage() {
               </p>
             </div>
 
-            <Link
-              href="/register"
-              className="inline-flex w-fit rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-black transition hover:bg-white/85"
-            >
-              {t.join}
-            </Link>
-            <a href={freeListingLink} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex w-fit text-sm font-semibold text-white/80 underline decoration-white/30 underline-offset-4 transition hover:text-white">
-              {t.freeListing}
-            </a>
+            <div>
+              <Link
+                href="/register"
+                className="inline-flex w-fit rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-black transition hover:bg-white/85"
+              >
+                {t.join}
+              </Link>
+
+              <a
+                href={freeListingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex w-fit text-sm font-semibold text-white/80 underline decoration-white/30 underline-offset-4 transition hover:text-white"
+              >
+                {t.freeListing}
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
       <footer className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-10 text-sm text-black/35 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
-        <Link href="/" className="font-semibold text-black">
+        <Link
+          href="/"
+          className="font-semibold text-black"
+        >
           Baraka<span className="text-black/30">Nest</span>
         </Link>
 
@@ -656,10 +1048,18 @@ export default function HousesPage() {
           >
             {t.login}
           </Link>
-          <Link href="/contact" className="transition hover:text-black">Contact</Link>
+
+          <Link
+            href="/contact"
+            className="transition hover:text-black"
+          >
+            Contact
+          </Link>
         </div>
 
-        <span>© {new Date().getFullYear()} Baraka Nest</span>
+        <span>
+          © {new Date().getFullYear()} Baraka Nest
+        </span>
       </footer>
     </main>
   );

@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { kenyaCounties } from "@/lib/kenya-counties";
 import { canonicalHouseType, houseTypes } from "@/lib/house-types";
+import { uploadUserFile } from "@/lib/client-upload";
+import AnnouncementManager from "./announcement-manager";
+import ProfileImageViewer from "@/components/ProfileImageViewer";
 
 type User = {
   id: string;
@@ -42,6 +46,8 @@ type House = {
   location: string;
   county: string;
   price: number;
+  deposit: number;
+  monthlyBills: number;
   type: string;
   rooms: string;
   available: number;
@@ -66,6 +72,22 @@ type AdminData = {
   loadedAt: string;
 };
 
+type AdminProfile = {
+  id: string;
+  name: string;
+  image: string | null;
+};
+
+type HouseImage = {
+  id: string;
+  houseId: string;
+  url: string;
+  blobPath: string;
+  sortOrder: number;
+  isCover: boolean;
+  createdAt: string;
+};
+
 type HouseForm = Omit<
   House,
   "id" | "hidden" | "featured"
@@ -78,6 +100,8 @@ const emptyHouseForm: HouseForm = {
   location: "",
   county: "",
   price: 8000,
+  deposit: 0,
+  monthlyBills: 0,
   type: "Bedsitter/Studio",
   rooms: "1 room",
   available: 1,
@@ -98,11 +122,29 @@ const button =
 
 export default function AdminClient() {
   const [data, setData] = useState<AdminData | null>(null);
+  const [adminProfile, setAdminProfile] =
+    useState<AdminProfile | null>(null);
   const [error, setError] = useState("");
+  const [avatarError, setAvatarError] = useState("");
   const [busy, setBusy] = useState("");
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [houseForm, setHouseForm] =
     useState<HouseForm>(emptyHouseForm);
+
+  const [photoHouseId, setPhotoHouseId] =
+    useState<string | null>(null);
+  const [houseImages, setHouseImages] =
+    useState<HouseImage[]>([]);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [photoNotice, setPhotoNotice] = useState("");
+  const [pendingHousePhotos, setPendingHousePhotos] = useState<File[]>([]);
+
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const adminProfileImage = adminProfile?.image || "/admin-profile.jpg";
 
   const refresh = useCallback(async () => {
     setError("");
@@ -132,20 +174,91 @@ export default function AdminClient() {
     }
   }, []);
 
+  const loadAdminProfile = useCallback(async () => {
+    setAvatarError("");
+
+    try {
+      const response = await fetch("/api/admin/profile", {
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+            "Could not load admin profile.",
+        );
+      }
+
+      setAdminProfile(result as AdminProfile);
+    } catch (issue) {
+      setAvatarError(
+        issue instanceof Error
+          ? issue.message
+          : "Could not load admin profile.",
+      );
+    }
+  }, []);
+
+  const loadHouseImages = useCallback(
+    async (houseId: string) => {
+      setPhotoLoading(true);
+      setPhotoError("");
+
+      try {
+        const response = await fetch(
+          `/api/admin/houses/${encodeURIComponent(houseId)}`,
+          {
+            cache: "no-store",
+            credentials: "include",
+          },
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.error ||
+              "Could not load house photos.",
+          );
+        }
+
+        setHouseImages(
+          Array.isArray(result.images)
+            ? (result.images as HouseImage[])
+            : [],
+        );
+      } catch (issue) {
+        setPhotoError(
+          issue instanceof Error
+            ? issue.message
+            : "Could not load house photos.",
+        );
+        setHouseImages([]);
+      } finally {
+        setPhotoLoading(false);
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void refresh();
+      void loadAdminProfile();
     }, 0);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [refresh]);
+  }, [refresh, loadAdminProfile]);
 
   async function update(
     payload: Record<string, unknown>,
     label: string,
     method = "PATCH",
+    afterCreate?: (id: string) => Promise<void>,
   ) {
     setBusy(label);
     setNotice("");
@@ -170,6 +283,15 @@ export default function AdminClient() {
         );
       }
 
+      const savedHouseId = typeof result.id === "string"
+        ? result.id
+        : payload.action === "house-update" && typeof payload.id === "string"
+          ? payload.id
+          : "";
+      if (savedHouseId && afterCreate) {
+        await afterCreate(savedHouseId);
+      }
+
       setNotice("Platform update saved.");
 
       if (
@@ -177,6 +299,11 @@ export default function AdminClient() {
         method === "POST"
       ) {
         setHouseForm(emptyHouseForm);
+        setPhotoHouseId(null);
+        setHouseImages([]);
+        setPhotoError("");
+        setPhotoNotice("");
+        setPendingHousePhotos([]);
       }
 
       await refresh();
@@ -191,6 +318,123 @@ export default function AdminClient() {
     }
   }
 
+  async function uploadAdminAvatar(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setAvatarBusy(true);
+    setAvatarError("");
+    setNotice("");
+
+    try {
+      if (!file.type.startsWith("image/")) {
+        throw new Error(
+          "Please choose an image file.",
+        );
+      }
+
+      if (file.size > 20 * 1024 * 1024) {
+        throw new Error(
+          "Avatar must be 20MB or smaller.",
+        );
+      }
+
+      if (!adminProfile?.id) throw new Error("Admin profile is still loading. Try again.");
+      const blob = await uploadUserFile(file, { kind: "avatar", userId: adminProfile.id });
+      const response = await fetch("/api/uploads/register", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "avatar",
+          url: blob.url,
+          pathname: blob.pathname,
+          contentType: file.type,
+          size: file.size,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+            "Could not upload admin avatar.",
+        );
+      }
+
+      setAdminProfile((current) => ({
+        id: current?.id || "",
+        name: current?.name || "Baraka Nest Admin",
+        image: result.avatarUrl || blob.url,
+      }));
+
+      setNotice("Admin profile picture updated.");
+    } catch (issue) {
+      setAvatarError(
+        issue instanceof Error
+          ? issue.message
+          : "Could not upload admin avatar.",
+      );
+    } finally {
+      setAvatarBusy(false);
+
+      if (avatarInputRef.current) {
+        avatarInputRef.current.value = "";
+      }
+    }
+  }
+
+  async function removeAdminAvatar() {
+    if (
+      !window.confirm(
+        "Remove the admin profile picture?",
+      )
+    ) {
+      return;
+    }
+
+    setAvatarBusy(true);
+    setAvatarError("");
+    setNotice("");
+
+    try {
+      const response = await fetch("/api/admin/avatar", {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+            "Could not remove admin avatar.",
+        );
+      }
+
+      setAdminProfile((current) => ({
+        id: current?.id || "",
+        name: current?.name || "Baraka Nest Admin",
+        image: null,
+      }));
+
+      setNotice("Admin profile picture removed.");
+    } catch (issue) {
+      setAvatarError(
+        issue instanceof Error
+          ? issue.message
+          : "Could not remove admin avatar.",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
   function editHouse(house: House) {
     setHouseForm({
       id: house.id,
@@ -198,6 +442,8 @@ export default function AdminClient() {
       location: house.location,
       county: house.county,
       price: house.price,
+      deposit: house.deposit ?? 0,
+      monthlyBills: house.monthlyBills ?? 0,
       type: canonicalHouseType(house.type),
       rooms: house.rooms,
       available: house.available,
@@ -206,6 +452,13 @@ export default function AdminClient() {
       distance: house.distance,
       coordinates: house.coordinates,
     });
+
+    setPhotoHouseId(house.id);
+    setHouseImages([]);
+    setPhotoError("");
+    setPhotoNotice("");
+
+    void loadHouseImages(house.id);
 
     document
       .getElementById("house-editor")
@@ -222,6 +475,8 @@ export default function AdminClient() {
 
     const editing = Boolean(houseForm.id);
 
+    const photosToUpload = [...pendingHousePhotos];
+
     void update(
       {
         ...(editing
@@ -234,6 +489,8 @@ export default function AdminClient() {
         location: houseForm.location,
         county: houseForm.county,
         price: Number(houseForm.price),
+        deposit: Number(houseForm.deposit),
+        monthlyBills: Number(houseForm.monthlyBills),
         type: houseForm.type,
         rooms: houseForm.rooms,
         available: Number(houseForm.available),
@@ -245,7 +502,291 @@ export default function AdminClient() {
       },
       editing ? houseForm.id! : "new-house",
       editing ? "PATCH" : "POST",
+      async (savedHouseId) => {
+        setHouseForm((current) => ({ ...current, id: savedHouseId }));
+        setPhotoHouseId(savedHouseId);
+        if (photosToUpload.length) {
+          setPendingHousePhotos([]);
+          await uploadHousePhotoFiles(savedHouseId, photosToUpload);
+        }
+      },
     );
+  }
+
+  async function uploadHouseImages(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const files = Array.from(event.target.files ?? []);
+
+    if (!files.length || !photoHouseId) {
+      return;
+    }
+
+    setPhotoBusy(true);
+    setPhotoError("");
+    setPhotoNotice("");
+
+    try {
+      if (files.length > 10) {
+        throw new Error(
+          "You can upload a maximum of 10 photos at once.",
+        );
+      }
+
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) {
+          throw new Error(
+            `"${file.name}" is not an image file.`,
+          );
+        }
+
+        if (file.size > 25 * 1024 * 1024) {
+          throw new Error(
+            `"${file.name}" is larger than 25MB.`,
+          );
+        }
+      }
+
+      await uploadHousePhotoFiles(photoHouseId, files);
+      setPhotoNotice(`${files.length} photo${files.length === 1 ? "" : "s"} uploaded successfully.`);
+    } catch (issue) {
+      setPhotoError(
+        issue instanceof Error
+          ? issue.message
+          : "Could not upload house photos.",
+      );
+    } finally {
+      setPhotoBusy(false);
+
+      if (photoInputRef.current) {
+        photoInputRef.current.value = "";
+      }
+    }
+  }
+
+  async function uploadHousePhotoFiles(houseId: string, files: File[]) {
+    for (const file of files) {
+      const blob = await uploadUserFile(file, { kind: "house-image", houseId });
+      const response = await fetch("/api/uploads/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "house-image",
+          houseId,
+          url: blob.url,
+          pathname: blob.pathname,
+          contentType: file.type,
+          size: file.size,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || `Could not save ${file.name}.`);
+    }
+
+    await loadHouseImages(houseId);
+  }
+
+  async function setCoverPhoto(imageId: string) {
+    if (!photoHouseId) {
+      return;
+    }
+
+    setPhotoBusy(true);
+    setPhotoError("");
+    setPhotoNotice("");
+
+    try {
+      const response = await fetch(
+        `/api/admin/houses/${encodeURIComponent(photoHouseId)}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "set-cover",
+            imageId,
+          }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+            "Could not set the cover photo.",
+        );
+      }
+
+      setHouseImages(
+        Array.isArray(result.images)
+          ? (result.images as HouseImage[])
+          : [],
+      );
+
+      setPhotoNotice("Cover photo updated.");
+    } catch (issue) {
+      setPhotoError(
+        issue instanceof Error
+          ? issue.message
+          : "Could not set the cover photo.",
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function deleteHouseImage(image: HouseImage) {
+    if (!photoHouseId) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        image.isCover
+          ? "Delete the cover photo? The next available photo will become the cover."
+          : "Delete this house photo permanently?",
+      )
+    ) {
+      return;
+    }
+
+    setPhotoBusy(true);
+    setPhotoError("");
+    setPhotoNotice("");
+
+    try {
+      const response = await fetch(
+        `/api/admin/houses/${encodeURIComponent(photoHouseId)}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            imageId: image.id,
+          }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+            "Could not delete the house photo.",
+        );
+      }
+
+      setHouseImages(
+        Array.isArray(result.images)
+          ? (result.images as HouseImage[])
+          : [],
+      );
+
+      setPhotoNotice("House photo deleted.");
+    } catch (issue) {
+      setPhotoError(
+        issue instanceof Error
+          ? issue.message
+          : "Could not delete the house photo.",
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function moveHouseImage(
+    imageId: string,
+    direction: "left" | "right",
+  ) {
+    if (!photoHouseId) {
+      return;
+    }
+
+    const currentIndex = houseImages.findIndex(
+      (image) => image.id === imageId,
+    );
+
+    if (currentIndex === -1) {
+      return;
+    }
+
+    const targetIndex =
+      direction === "left"
+        ? currentIndex - 1
+        : currentIndex + 1;
+
+    if (
+      targetIndex < 0 ||
+      targetIndex >= houseImages.length
+    ) {
+      return;
+    }
+
+    const reordered = [...houseImages];
+    const [movingImage] = reordered.splice(
+      currentIndex,
+      1,
+    );
+
+    reordered.splice(targetIndex, 0, movingImage);
+
+    const payload = reordered.map(
+      (image, index) => ({
+        id: image.id,
+        sortOrder: index,
+      }),
+    );
+
+    setPhotoBusy(true);
+    setPhotoError("");
+    setPhotoNotice("");
+
+    try {
+      const response = await fetch(
+        `/api/admin/houses/${encodeURIComponent(photoHouseId)}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "reorder",
+            images: payload,
+          }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+            "Could not reorder house photos.",
+        );
+      }
+
+      setHouseImages(
+        Array.isArray(result.images)
+          ? (result.images as HouseImage[])
+          : [],
+      );
+
+      setPhotoNotice("Photo order updated.");
+    } catch (issue) {
+      setPhotoError(
+        issue instanceof Error
+          ? issue.message
+          : "Could not reorder house photos.",
+      );
+    } finally {
+      setPhotoBusy(false);
+    }
   }
 
   function reviewStars(rating: number) {
@@ -276,7 +817,14 @@ export default function AdminClient() {
           <div className="flex gap-2">
             <button
               className={button}
-              onClick={() => void refresh()}
+              onClick={() => {
+                void refresh();
+                void loadAdminProfile();
+
+                if (photoHouseId) {
+                  void loadHouseImages(photoHouseId);
+                }
+              }}
             >
               Refresh
             </button>
@@ -350,6 +898,86 @@ export default function AdminClient() {
               ))}
             </section>
 
+            <section className={`${panel} mb-6`}>
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <ProfileImageViewer src={adminProfileImage} alt="Admin profile picture" className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-[#eaf2e8] bg-[#183b2c] shadow-sm">
+                    <Image src={adminProfileImage} alt="Admin profile" fill sizes="80px" unoptimized className="object-cover object-[center_28%]" />
+                  </ProfileImageViewer>
+
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#e58b45]">
+                      Admin profile
+                    </p>
+
+                    <h2 className="mt-1 text-xl font-extrabold">
+                      {adminProfile?.name ||
+                        "Baraka Nest Admin"}
+                    </h2>
+
+                    <p className="mt-1 text-sm text-[#718077]">
+                      This picture appears wherever Baraka Nest
+                      presents the platform admin.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={uploadAdminAvatar}
+                    className="sr-only"
+                    id="admin-avatar-upload"
+                  />
+
+                  <label
+                    htmlFor="admin-avatar-upload"
+                    className={`${button} inline-flex cursor-pointer items-center justify-center ${
+                      avatarBusy
+                        ? "pointer-events-none"
+                        : ""
+                    }`}
+                  >
+                    {avatarBusy
+                      ? "Uploading…"
+                      : "Upload picture"}
+                  </label>
+
+                  {adminProfile?.image && adminProfile.image !== "/admin-profile.jpg" && (
+                    <button
+                      type="button"
+                      className={`${button} text-red-700`}
+                      disabled={avatarBusy}
+                      onClick={() =>
+                        void removeAdminAvatar()
+                      }
+                    >
+                      Remove picture
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {avatarError && (
+                <p
+                  role="alert"
+                  className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-800"
+                >
+                  {avatarError}
+                </p>
+              )}
+
+              <p className="mt-4 text-[11px] leading-5 text-[#87938b]">
+                JPG, PNG, WEBP and other browser-supported image
+                formats are accepted up to 20MB. Only the
+                super-admin can change this picture.
+              </p>
+            </section>
+
+            <AnnouncementManager />
+
             <section
               id="house-editor"
               className={`${panel} mb-6`}
@@ -372,9 +1000,13 @@ export default function AdminClient() {
                   <button
                     type="button"
                     className={button}
-                    onClick={() =>
-                      setHouseForm(emptyHouseForm)
-                    }
+                    onClick={() => {
+                      setHouseForm(emptyHouseForm);
+                      setPhotoHouseId(null);
+                      setHouseImages([]);
+                      setPhotoError("");
+                      setPhotoNotice("");
+                    }}
                   >
                     Cancel edit
                   </button>
@@ -459,6 +1091,30 @@ export default function AdminClient() {
                         price: Number(event.target.value),
                       }))
                     }
+                    className="mt-1 min-h-11 w-full rounded-xl border border-[#dfe6dd] px-3 text-sm font-normal"
+                  />
+                </label>
+
+                <label className="text-xs font-bold text-[#526258]">
+                  Deposit (KSh, optional)
+                  <input
+                    type="number"
+                    min={0}
+                    max={1000000}
+                    value={houseForm.deposit}
+                    onChange={(event) => setHouseForm((current) => ({ ...current, deposit: Number(event.target.value) }))}
+                    className="mt-1 min-h-11 w-full rounded-xl border border-[#dfe6dd] px-3 text-sm font-normal"
+                  />
+                </label>
+
+                <label className="text-xs font-bold text-[#526258]">
+                  Estimated monthly bills (KSh)
+                  <input
+                    type="number"
+                    min={0}
+                    max={1000000}
+                    value={houseForm.monthlyBills}
+                    onChange={(event) => setHouseForm((current) => ({ ...current, monthlyBills: Number(event.target.value) }))}
                     className="mt-1 min-h-11 w-full rounded-xl border border-[#dfe6dd] px-3 text-sm font-normal"
                   />
                 </label>
@@ -634,6 +1290,247 @@ export default function AdminClient() {
                   </button>
                 </div>
               </form>
+
+              {!houseForm.id && (
+                <section className="mt-6 rounded-2xl border border-dashed border-[#d7e2d4] bg-[#f7f9f5] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-[#355342]">
+                        Add photos with this new listing
+                      </h3>
+                      <p className="mt-1 text-xs text-[#718077]">
+                        Photos upload after the listing is saved. Up to 10 images, 25MB each.
+                      </p>
+                    </div>
+                    <label htmlFor="new-house-photo-upload" className={`${button} inline-flex cursor-pointer items-center`}>
+                      Choose photos
+                    </label>
+                    <input
+                      id="new-house-photo-upload"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="sr-only"
+                      onChange={(event) => {
+                        const files = Array.from(event.target.files ?? []);
+                        if (files.length > 10 || files.some((file) => !file.type.startsWith("image/") || file.size > 25 * 1024 * 1024)) {
+                          setPhotoError("Choose up to 10 image files, each 25MB or smaller.");
+                          event.target.value = "";
+                          return;
+                        }
+                        setPhotoError("");
+                        setPendingHousePhotos(files);
+                      }}
+                    />
+                  </div>
+
+                  {pendingHousePhotos.length > 0 && (
+                    <ul className="mt-4 space-y-2">
+                      {pendingHousePhotos.map((file, index) => (
+                        <li key={`${file.name}-${file.lastModified}`} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-xs">
+                          <span className="min-w-0 truncate text-[#526258]">{file.name}</span>
+                          <button
+                            type="button"
+                            className="shrink-0 font-bold text-red-700"
+                            onClick={() => setPendingHousePhotos((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )}
+
+              {houseForm.id && photoHouseId && (
+                <section className="mt-7 border-t border-[#edf0eb] pt-6">
+                  <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#e58b45]">
+                        Listing photos
+                      </p>
+
+                      <h3 className="mt-1 text-xl font-extrabold">
+                        Photos for {houseForm.name}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-[#718077]">
+                        Upload up to 10 images at once. The cover
+                        photo is shown first on the public listing.
+                      </p>
+                    </div>
+
+                    <div>
+                      <input
+                        ref={photoInputRef}
+                        id="house-photo-upload"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={uploadHouseImages}
+                        className="sr-only"
+                      />
+
+                      <label
+                        htmlFor="house-photo-upload"
+                        className={`${button} inline-flex cursor-pointer items-center justify-center ${
+                          photoBusy
+                            ? "pointer-events-none"
+                            : ""
+                        }`}
+                      >
+                        {photoBusy
+                          ? "Working…"
+                          : "Add photos"}
+                      </label>
+                    </div>
+                  </div>
+
+                  {photoError && (
+                    <p
+                      role="alert"
+                      className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-800"
+                    >
+                      {photoError}
+                    </p>
+                  )}
+
+                  {photoNotice && (
+                    <p
+                      role="status"
+                      className="mt-4 rounded-xl bg-[#eaf2e8] px-3 py-2 text-xs font-semibold text-[#285640]"
+                    >
+                      {photoNotice}
+                    </p>
+                  )}
+
+                  {photoLoading ? (
+                    <div className="mt-5 rounded-2xl bg-[#f7f8f4] px-4 py-8 text-center text-sm text-[#718077]">
+                      Loading photos…
+                    </div>
+                  ) : houseImages.length === 0 ? (
+                    <div className="mt-5 rounded-2xl border border-dashed border-[#dce5db] bg-[#f7f8f4] px-4 py-8 text-center">
+                      <p className="font-bold text-[#355342]">
+                        No photos yet
+                      </p>
+
+                      <p className="mt-1 text-xs text-[#718077]">
+                        Add clear photos of the house, rooms and
+                        useful facilities.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {houseImages.map((image, index) => (
+                        <article
+                          key={image.id}
+                          className="overflow-hidden rounded-2xl border border-[#e5ebe3] bg-white"
+                        >
+                          <div className="relative aspect-[4/3] overflow-hidden bg-[#eef2ec]">
+                            <div
+                              className="absolute inset-0 bg-cover bg-center transition-transform duration-300 hover:scale-[1.02]"
+                              style={{
+                                backgroundImage: `url("${image.url}")`,
+                              }}
+                              role="img"
+                              aria-label={`${houseForm.name} photo ${index + 1}`}
+                            />
+
+                            {image.isCover && (
+                              <span className="absolute left-3 top-3 rounded-full bg-[#183b2c] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-white shadow-sm">
+                                Cover photo
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-bold text-[#526258]">
+                                Photo {index + 1}
+                              </p>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  photoBusy ||
+                                  image.isCover
+                                }
+                                className="text-xs font-bold text-[#e58b45] disabled:opacity-40"
+                                onClick={() =>
+                                  void setCoverPhoto(
+                                    image.id,
+                                  )
+                                }
+                              >
+                                {image.isCover
+                                  ? "Cover"
+                                  : "Make cover"}
+                              </button>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                              <button
+                                type="button"
+                                disabled={
+                                  photoBusy ||
+                                  index === 0
+                                }
+                                className={button}
+                                onClick={() =>
+                                  void moveHouseImage(
+                                    image.id,
+                                    "left",
+                                  )
+                                }
+                              >
+                                ←
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  photoBusy ||
+                                  index ===
+                                    houseImages.length - 1
+                                }
+                                className={button}
+                                onClick={() =>
+                                  void moveHouseImage(
+                                    image.id,
+                                    "right",
+                                  )
+                                }
+                              >
+                                →
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={photoBusy}
+                                className={`${button} text-red-700`}
+                                onClick={() =>
+                                  void deleteHouseImage(
+                                    image,
+                                  )
+                                }
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="mt-4 text-[11px] leading-5 text-[#87938b]">
+                    Images are stored in Vercel Blob while Turso
+                    stores their listing metadata. Maximum 25MB per
+                    image.
+                  </p>
+                </section>
+              )}
             </section>
 
             <section className={`${panel} mb-6`}>
@@ -674,6 +1571,25 @@ export default function AdminClient() {
                         onClick={() => editHouse(house)}
                       >
                         Edit details
+                      </button>
+
+                      <button
+                        disabled={Boolean(busy)}
+                        className={button}
+                        onClick={() => {
+                          editHouse(house);
+
+                          window.setTimeout(() => {
+                            document
+                              .getElementById("house-editor")
+                              ?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                              });
+                          }, 50);
+                        }}
+                      >
+                        Manage photos
                       </button>
 
                       <button

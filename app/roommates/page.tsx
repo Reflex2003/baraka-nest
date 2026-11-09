@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import ProfileImageViewer from "@/components/ProfileImageViewer";
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "../navbar";
 import { useLanguage } from "../language-context";
@@ -8,6 +10,7 @@ import { useLanguage } from "../language-context";
 type RoommateProfile = {
   id: string;
   username: string;
+  image: string | null;
   name: string;
   age: number;
   school: string;
@@ -24,6 +27,7 @@ type RoommateProfile = {
     lifestyle: boolean;
     interests: boolean;
   } | null;
+  matchScore: number | null;
 };
 
 const locations = [
@@ -77,6 +81,7 @@ const translations = {
     moveIn: "Move in",
 
     match: "Shared preferences",
+    matchScoreLabel: "fit",
     matchUnavailable: "Create your profile to see fit",
     noSharedDetails: "No shared preferences yet",
     matchBreakdown: ["Budget", "Location", "Lifestyle", "Interests"],
@@ -144,6 +149,7 @@ const translations = {
     moveIn: "Kuhamia",
 
     match: "Vitu mnavyofanana",
+    matchScoreLabel: "zinaendana",
     matchUnavailable: "Tengeneza profile kuona inayokufaa",
     noSharedDetails: "Bado hakuna vitu vinavyofanana",
     matchBreakdown: ["Budget", "Eneo", "Lifestyle", "Unachopenda"],
@@ -211,6 +217,7 @@ const translations = {
     moveIn: "Move-in",
 
     match: "Vitu mnafanana",
+    matchScoreLabel: "match",
     matchUnavailable: "Tengeneza profile uone fit",
     noSharedDetails: "Bado hamjapata vitu mnafanana",
     matchBreakdown: ["Budget", "Area", "Lifestyle", "Interests"],
@@ -603,9 +610,8 @@ export default function RoommatesPage() {
                     : t.matchUnavailable;
 
                   return (
-                    <Link
+                    <article
                       key={profile.id}
-                      href={`/roommates/${profile.id}`}
                       style={{
                         animationDelay: `${index * 90}ms`,
                       }}
@@ -619,9 +625,15 @@ export default function RoommatesPage() {
                         <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-black/[0.025] transition-transform duration-700 group-hover:scale-150" />
 
                         <div className="relative flex items-start justify-between">
-                          <div className="flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-black text-xl font-black text-white transition-all duration-500 group-hover:rotate-2 group-hover:scale-105">
-                            {getInitials(profile.name)}
-                          </div>
+                          {profile.image ? (
+                            <ProfileImageViewer src={profile.image} alt={`${profile.name} profile picture`} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-[1.5rem] bg-black text-xl font-black text-white transition-all duration-500 group-hover:rotate-2 group-hover:scale-105">
+                              <Image src={profile.image} alt={`${profile.name} profile`} fill sizes="80px" unoptimized className="object-cover" />
+                            </ProfileImageViewer>
+                          ) : (
+                            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] bg-black text-xl font-black text-white transition-all duration-500 group-hover:rotate-2 group-hover:scale-105">
+                              {getInitials(profile.name)}
+                            </div>
+                          )}
 
                           <div className="rounded-full bg-white px-3 py-2 text-xs font-black shadow-sm transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-md">
                             {sharedPreferences}
@@ -640,6 +652,11 @@ export default function RoommatesPage() {
                       </div>
 
                       <div className="p-7">
+                        {profile.matchScore !== null && (
+                          <p className="mb-4 inline-flex rounded-full bg-[#eaf2e8] px-3 py-1 text-xs font-bold text-[#285640]">
+                            {profile.matchScore}% {t.matchScoreLabel}
+                          </p>
+                        )}
                         {profile.matchBreakdown && (
                           <div className="mb-5 flex flex-wrap gap-2">
                             {t.matchBreakdown.map((label, itemIndex) => {
@@ -743,16 +760,16 @@ export default function RoommatesPage() {
                         )}
 
                         <div className="mt-7 flex items-center justify-between border-t border-black/10 pt-5">
-                          <span className="text-sm font-bold">
+                          <Link href={`/roommates/${profile.id}`} className="text-sm font-bold hover:underline">
                             {t.viewProfile}
-                          </span>
+                          </Link>
 
                           <span className="flex h-9 w-9 items-center justify-center rounded-full border border-black/10 transition-all duration-300 group-hover:translate-x-1 group-hover:bg-black group-hover:text-white group-hover:shadow-lg">
                             →
                           </span>
                         </div>
                       </div>
-                    </Link>
+                    </article>
                   );
                 },
               )}

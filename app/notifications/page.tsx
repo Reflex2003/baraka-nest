@@ -42,6 +42,15 @@ type RequestsResponse = {
   connections: Connection[];
 };
 
+type ListingAlert = {
+  id: string;
+  title: string;
+  body: string;
+  href: string;
+  created_at: string;
+  read_at: string | null;
+};
+
 const translations = {
   English: {
     brand: "Baraka Nest",
@@ -79,6 +88,9 @@ const translations = {
     connectedWith: "You are now connected with",
 
     recently: "Recently",
+    listingAlerts: "Saved search alerts",
+    noListingAlerts: "New homes matching your saved searches will appear here.",
+    markAlertsRead: "Mark all as read",
   },
 
   Swahili: {
@@ -119,6 +131,9 @@ const translations = {
     connectedWith: "Sasa umeconnect na",
 
     recently: "Hivi karibuni",
+    listingAlerts: "Arifa za utafutaji uliohifadhi",
+    noListingAlerts: "Nyumba mpya zinazolingana na utafutaji wako zitaonekana hapa.",
+    markAlertsRead: "Weka zote kuwa zimesomwa",
   },
 
   Sheng: {
@@ -159,6 +174,9 @@ const translations = {
     connectedWith: "Sasa umeconnect na",
 
     recently: "Juzi hivi",
+    listingAlerts: "Search alerts ulizohifadhi",
+    noListingAlerts: "Nyumba mpya zinazofit search zako zitaonekana hapa.",
+    markAlertsRead: "Mark zote read",
   },
 };
 
@@ -312,6 +330,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
 
   const [error, setError] = useState("");
+  const [listingAlerts, setListingAlerts] = useState<ListingAlert[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -372,6 +391,27 @@ export default function NotificationsPage() {
     };
   }, [language]);
 
+  useEffect(() => {
+    let active = true;
+    fetch("/api/notifications", { cache: "no-store", credentials: "include" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (active && Array.isArray(data?.notifications)) setListingAlerts(data.notifications as ListingAlert[]);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  async function markListingAlertsRead() {
+    const response = await fetch("/api/notifications", {
+      method: "PATCH",
+      credentials: "include",
+    });
+    if (response.ok) {
+      setListingAlerts((current) => current.map((alert) => ({ ...alert, read_at: new Date().toISOString() })));
+    }
+  }
+
   return (
     <>
       <Navbar />
@@ -393,6 +433,33 @@ export default function NotificationsPage() {
               {t.subtitle}
             </p>
           </div>
+
+          <section className="mb-6 overflow-hidden rounded-3xl bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#edf0eb] px-6 py-5">
+              <div>
+                <h2 className="font-bold text-[#183b2c]">{t.listingAlerts}</h2>
+                <p className="mt-1 text-sm text-[#718078]">{t.noListingAlerts}</p>
+              </div>
+              {listingAlerts.some((alert) => !alert.read_at) && (
+                <button type="button" onClick={() => void markListingAlertsRead()} className="text-xs font-bold text-[#355342] underline">
+                  {t.markAlertsRead}
+                </button>
+              )}
+            </div>
+            {listingAlerts.length === 0 ? (
+              <p className="px-6 py-8 text-sm text-[#87938b]">{t.noListingAlerts}</p>
+            ) : (
+              <div className="divide-y divide-[#edf0eb]">
+                {listingAlerts.map((alert) => (
+                  <Link key={alert.id} href={alert.href} className={`block px-6 py-4 transition hover:bg-[#f9faf7] ${alert.read_at ? "" : "bg-[#f3f8f2]"}`}>
+                    <h3 className="font-bold text-[#183b2c]">{alert.title}</h3>
+                    <p className="mt-1 text-sm leading-5 text-[#718078]">{alert.body}</p>
+                    <p className="mt-2 text-xs text-[#a0aaa2]">{formatDate(alert.created_at, t.recently)}</p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
 
           {/* Main notifications card */}
           <section className="overflow-hidden rounded-3xl bg-white shadow-sm">

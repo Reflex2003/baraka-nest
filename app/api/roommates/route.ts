@@ -23,6 +23,7 @@ type RoommateProfileRow = {
   lifestyle: string;
   created_at: string;
   updated_at: string;
+  profile_image: string | null;
 };
 
 function createId() {
@@ -49,6 +50,7 @@ function formatProfile(profile: RoommateProfileRow) {
   return {
     id: profile.id,
     username: profile.username,
+    image: profile.profile_image,
     name: profile.name,
     age: profile.age,
     school: profile.school,
@@ -78,7 +80,12 @@ function compareProfile(
   const otherInterests = parseJsonArray(other.interests).map((item) => item.toLowerCase());
   const lifestyle = ownLifestyle.some((item) => otherLifestyle.includes(item));
   const interests = ownInterests.some((item) => otherInterests.includes(item));
-  return { matchBreakdown: { budget, location, lifestyle, interests } };
+  const matchBreakdown = { budget, location, lifestyle, interests };
+  const matchScore = Math.round(
+    Number(budget) * 35 + Number(location) * 30 +
+    Number(lifestyle) * 20 + Number(interests) * 15,
+  );
+  return { matchBreakdown, matchScore };
 }
 
 function isValidText(value: string, maxLength: number) {
@@ -108,14 +115,19 @@ export async function GET(request: Request) {
       profile.user_id !== session?.user?.id && !hiddenByBlocks.has(profile.user_id),
     );
 
-    return Response.json({
-      profiles: visibleProfiles.map((profile) => ({
+    const formattedProfiles = visibleProfiles.map((profile) => ({
         ...formatProfile(profile),
         ...(currentProfile ? compareProfile(currentProfile, profile) : {
           matchBreakdown: null,
+          matchScore: null,
         }),
-      })),
-    });
+      }));
+
+    if (currentProfile) {
+      formattedProfiles.sort((left, right) => Number(right.matchScore) - Number(left.matchScore));
+    }
+
+    return Response.json({ profiles: formattedProfiles });
   } catch (error) {
     console.error("Roommate profiles error:", error);
 

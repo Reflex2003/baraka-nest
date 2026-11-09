@@ -61,13 +61,23 @@ export async function getRoommateProfileByUserId(userId: string) {
 
 export async function getAllRoommateProfiles() {
   return roommateDb
-    .prepare("SELECT * FROM roommate_profile ORDER BY created_at DESC")
+    .prepare(`
+      SELECT rp.*, u.image AS profile_image
+      FROM roommate_profile rp
+      LEFT JOIN "user" u ON u.id = rp.user_id
+      ORDER BY rp.created_at DESC
+    `)
     .all();
 }
 
 export async function getRoommateProfileById(id: string) {
   return roommateDb
-    .prepare("SELECT * FROM roommate_profile WHERE id = ? LIMIT 1")
+    .prepare(`
+      SELECT rp.*, u.image AS profile_image
+      FROM roommate_profile rp
+      LEFT JOIN "user" u ON u.id = rp.user_id
+      WHERE rp.id = ? LIMIT 1
+    `)
     .get(id);
 }
 

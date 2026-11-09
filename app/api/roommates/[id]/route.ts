@@ -17,6 +17,7 @@ type RoommateProfileRow = {
   about: string;
   interests: string;
   lifestyle: string;
+  profile_image: string | null;
 };
 
 function parseJsonArray(value: string): string[] {
@@ -81,6 +82,7 @@ export async function GET(
       profile: {
         id: profile.id,
         username: profile.username,
+        image: profile.profile_image,
         name: profile.name,
         age: profile.age,
         school: profile.school,

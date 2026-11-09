@@ -1,8 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useLanguage, type Language } from "./language-context";
 import Navbar from "./navbar";
+
+type AnnouncementItem = {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  attachments: Array<{
+    id: string;
+    url: string;
+    file_name: string;
+    content_type: string;
+  }>;
+};
 
 const translations = {
   English: {
@@ -60,6 +74,7 @@ const translations = {
     createAccount: "Create your account",
 
     copyright: "Baraka Nest",
+    announcements: "Announcements",
   },
 
   Swahili: {
@@ -117,6 +132,7 @@ const translations = {
     createAccount: "Tengeneza akaunti",
 
     copyright: "Baraka Nest",
+    announcements: "Matangazo",
   },
 
   Sheng: {
@@ -174,11 +190,24 @@ const translations = {
     createAccount: "Create account",
 
     copyright: "Baraka Nest",
+    announcements: "Announcements",
   },
 };
 
 export default function Home() {
   const { language } = useLanguage();
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/announcements", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (active && Array.isArray(data?.announcements)) setAnnouncements(data.announcements as AnnouncementItem[]);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const currentLanguage = language as Language;
   const t = translations[currentLanguage];
@@ -204,6 +233,38 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#faf9f6] text-[#183b2c]">
       <Navbar />
+
+      {announcements.length > 0 && (
+        <section className="border-b border-[#ead8c4] bg-[#fff8f0] px-5 py-8 sm:px-8">
+          <div className="mx-auto max-w-7xl">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#b56e36]">{t.announcements}</p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {announcements.map((announcement) => (
+                <article key={announcement.id} className="overflow-hidden rounded-2xl border border-[#f0e1d0] bg-white p-5 shadow-sm">
+                  <h2 className="text-lg font-extrabold text-[#183b2c]">{announcement.title}</h2>
+                  {announcement.body && <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#647067]">{announcement.body}</p>}
+                  {announcement.attachments.length > 0 && <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {announcement.attachments.map((file) => (
+                      <div key={file.id} className="overflow-hidden rounded-xl bg-[#f7f8f4]">
+                        {file.content_type.startsWith("image/") ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={file.url} alt={announcement.title} className="max-h-72 w-full object-contain" />
+                        ) : file.content_type.startsWith("video/") ? (
+                          <video src={file.url} controls className="max-h-72 w-full bg-black" />
+                        ) : file.content_type.startsWith("audio/") ? (
+                          <div className="p-3"><audio src={file.url} controls className="w-full" /></div>
+                        ) : (
+                          <a href={file.url} target="_blank" rel="noreferrer" className="flex min-h-20 items-center justify-center px-3 py-4 text-center text-xs font-bold text-[#355342] underline">Open {file.file_name}</a>
+                        )}
+                      </div>
+                    ))}
+                  </div>}
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="relative overflow-hidden">
           <div className="absolute left-1/2 top-0 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-[#dfe8dc]/70 blur-3xl" />

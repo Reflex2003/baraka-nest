@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import ProfileImageViewer from "@/components/ProfileImageViewer";
 import { useEffect, useState } from "react";
 import { useLanguage } from "../../language-context";
 import Navbar from "../../navbar";
@@ -8,6 +10,7 @@ import Navbar from "../../navbar";
 type RoommateProfile = {
   id: string;
   username: string;
+  image: string | null;
   name: string;
   age: number;
   school: string;
@@ -366,9 +369,15 @@ export default function RoommateProfilePage({
           <section className="mt-6 overflow-hidden rounded-3xl border border-[#e3e7df] bg-white shadow-sm">
             <div className="bg-[#dfe8dc] px-6 py-10 sm:px-10">
               <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white text-3xl font-bold shadow-sm">
-                  {profile.name.charAt(0).toUpperCase()}
-                </div>
+                {profile.image ? (
+                  <ProfileImageViewer src={profile.image} alt={`${profile.name} profile picture`} className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full bg-white text-3xl font-bold shadow-sm">
+                    <Image src={profile.image} alt={`${profile.name} profile`} fill sizes="96px" unoptimized className="object-cover" />
+                  </ProfileImageViewer>
+                ) : (
+                  <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-white text-3xl font-bold shadow-sm">
+                    {profile.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
 
                 <div>
                   <h1 className="text-3xl font-bold">

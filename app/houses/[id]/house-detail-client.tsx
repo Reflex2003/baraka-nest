@@ -40,6 +40,9 @@ const translations = {
       "Exact location details can be shared after an inquiry.",
     monthlyRent: "Monthly rent",
     perMonth: "per month",
+    monthlyBills: "Estimated monthly bills",
+    deposit: "Deposit",
+    estimatedTotal: "Estimated monthly total",
     spaces: "spaces",
     distance: "Distance",
     rating: "Rating",
@@ -86,6 +89,9 @@ const translations = {
       "Maelezo kamili ya eneo yanaweza kushirikiwa baada ya kutuma ombi.",
     monthlyRent: "Kodi ya mwezi",
     perMonth: "kwa mwezi",
+    monthlyBills: "Bills za mwezi (makadirio)",
+    deposit: "Deposit",
+    estimatedTotal: "Jumla ya makadirio kwa mwezi",
     spaces: "nafasi",
     distance: "Umbali",
     rating: "Rating",
@@ -133,6 +139,9 @@ const translations = {
       "Exact location inaweza shareiwa baada ya inquiry.",
     monthlyRent: "Rent ya mwezi",
     perMonth: "per month",
+    monthlyBills: "Estimated monthly bills",
+    deposit: "Deposit",
+    estimatedTotal: "Total ya makadirio kwa mwezi",
     spaces: "spaces",
     distance: "Distance",
     rating: "Rating",
@@ -742,6 +751,29 @@ export default function HouseDetailClient({
               </div>
 
               <div className="my-7 h-px bg-black/[0.07]" />
+
+              <div className="space-y-2 rounded-2xl bg-[#f7f8f4] p-4 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-black/45">{t.monthlyRent}</span>
+                  <span className="font-semibold">{formatPrice(house.price)}</span>
+                </div>
+                {(house.monthlyBills ?? 0) > 0 && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-black/45">{t.monthlyBills}</span>
+                    <span className="font-semibold">{formatPrice(house.monthlyBills ?? 0)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-4 border-t border-black/10 pt-2">
+                  <span className="font-bold">{t.estimatedTotal}</span>
+                  <span className="font-bold">{formatPrice(house.price + (house.monthlyBills ?? 0))}</span>
+                </div>
+                {(house.deposit ?? 0) > 0 && (
+                  <div className="flex justify-between gap-4 pt-1">
+                    <span className="text-black/45">{t.deposit}</span>
+                    <span className="font-semibold">{formatPrice(house.deposit ?? 0)}</span>
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-5">
                 <div className="flex items-center justify-between">

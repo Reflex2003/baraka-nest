@@ -20,31 +20,6 @@ type RoommateProfile = {
   lifestyle: string;
 };
 
-function calculateCompletion(
-  profile: RoommateProfile | undefined,
-) {
-  if (!profile) {
-    return 0;
-  }
-
-  const fields = [
-    profile.name,
-    profile.age,
-    profile.school,
-    profile.location,
-    profile.budget,
-    profile.move_in,
-    profile.preference,
-    profile.about,
-  ];
-
-  const completed = fields.filter(Boolean).length;
-
-  return Math.round(
-    (completed / fields.length) * 100,
-  );
-}
-
 export default async function ProfilePage() {
   const session = await requireSession();
 
@@ -69,8 +44,6 @@ export default async function ProfilePage() {
       }
     : undefined;
 
-  const completion = calculateCompletion(profile);
-
   const displayName =
     profile?.name ||
     session.user.name ||
@@ -87,9 +60,9 @@ export default async function ProfilePage() {
 
       <ProfileClient
         profile={profile}
-        completion={completion}
         displayName={displayName}
         avatarUrl={avatarUrl}
+        userId={session.user.id}
       />
     </>
   );

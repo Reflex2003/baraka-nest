@@ -1,10 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import Navbar from "../navbar";
 import SocialIcons from "@/components/SocialIcons";
+import ProfileImageViewer from "@/components/ProfileImageViewer";
 import { useLanguage } from "../language-context";
-import { adminContactChannels, freeListingLink } from "@/lib/contact";
+import {
+  freeListingLink,
+} from "@/lib/contact";
+
+type AdminProfile = {
+  name: string;
+  image: string | null;
+};
 
 const copy = {
   English: {
@@ -14,8 +24,6 @@ const copy = {
       "Ask a question, share feedback, or list student housing for free. Choose the channel that works for you.",
     listing: "List your place for free",
     socials: "Connect with Admin",
-    email: "Admin Email",
-    emailDescription: "Copy the email or open your mail app directly.",
     browse: "Browse student homes",
   },
 
@@ -26,9 +34,6 @@ const copy = {
       "Uliza swali, tuma maoni, au tangaza makazi ya wanafunzi bila malipo. Chagua njia inayokufaa.",
     listing: "Tangaza nyumba bila malipo",
     socials: "Wasiliana na Admin",
-    email: "Barua pepe ya Admin",
-    emailDescription:
-      "Copy email au fungua mail app yako moja kwa moja.",
     browse: "Tazama makazi ya wanafunzi",
   },
 
@@ -39,9 +44,6 @@ const copy = {
       "Uliza swali, drop feedback, ama list student housing free. Chagua channel inakufaa.",
     listing: "List keja free",
     socials: "Connect na Admin",
-    email: "Admin Email",
-    emailDescription:
-      "Copy email ama fungua mail app direct.",
     browse: "Saka student homes",
   },
 };
@@ -49,6 +51,43 @@ const copy = {
 export default function ContactPage() {
   const { language } = useLanguage();
   const t = copy[language];
+  const [adminProfile, setAdminProfile] =
+    useState<AdminProfile | null>(null);
+  const adminImage = adminProfile?.image || "/admin-profile.jpg";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAdminProfile() {
+      try {
+        const response = await fetch(
+          "/api/admin/profile",
+          {
+            cache: "no-store",
+          },
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const result =
+          (await response.json()) as AdminProfile;
+
+        if (!cancelled) {
+          setAdminProfile(result);
+        }
+      } catch {
+        // The contact page still works with the fallback avatar.
+      }
+    }
+
+    void loadAdminProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#fafaf7] text-[#183b2c]">
@@ -81,65 +120,29 @@ export default function ContactPage() {
 
         <div className="mt-12 rounded-[2rem] border border-[#e3e9e1] bg-white p-6 shadow-[0_20px_60px_rgba(24,59,44,0.07)] sm:p-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#df8750]">
-                {t.socials}
-              </p>
+            <div className="flex items-center gap-4">
+              <ProfileImageViewer src={adminImage} alt="Baraka Nest admin profile picture" className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-4 border-[#eaf2e8] bg-[#183b2c] shadow-sm">
+                <Image src={adminImage} alt="Baraka Nest admin profile" fill sizes="64px" unoptimized className="object-cover object-[center_28%]" />
+              </ProfileImageViewer>
 
-              <h2 className="mt-2 text-2xl font-extrabold tracking-tight">
-                Baraka Nest Admin
-              </h2>
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#df8750]">
+                  {t.socials}
+                </p>
 
-              <p className="mt-2 max-w-xl text-sm leading-6 text-[#718077]">
-                Reach us directly through WhatsApp, Instagram, Facebook,
-                Telegram or email.
-              </p>
+                <h2 className="mt-2 text-2xl font-extrabold tracking-tight">
+                  Baraka Nest Admin
+                </h2>
+
+                <p className="mt-2 max-w-xl text-sm leading-6 text-[#718077]">
+                  Reach us directly through WhatsApp, Instagram,
+                  Facebook, Telegram or email.
+                </p>
+              </div>
             </div>
 
             <SocialIcons />
           </div>
-        </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {adminContactChannels.map((channel) => (
-            <a
-              key={channel.id}
-              href={channel.href}
-              target={
-                channel.href.startsWith("mailto:")
-                  ? undefined
-                  : "_blank"
-              }
-              rel={
-                channel.href.startsWith("mailto:")
-                  ? undefined
-                  : "noopener noreferrer"
-              }
-              className="group rounded-3xl border border-[#e3e9e1] bg-white p-6 transition-all duration-200 hover:-translate-y-1 hover:border-[#b9cbb8] hover:shadow-[0_16px_40px_rgba(24,59,44,0.08)]"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#df8750]">
-                  {channel.label}
-                </span>
-
-                <span className="text-lg transition-transform duration-200 group-hover:translate-x-1 group-hover:-translate-y-1">
-                  ↗
-                </span>
-              </div>
-
-              <h3 className="mt-4 text-lg font-extrabold text-[#183b2c]">
-                {channel.detail}
-              </h3>
-
-              <p className="mt-2 break-all text-sm text-[#718077]">
-                {channel.id === "email"
-                  ? "ianmorgan107@gmail.com"
-                  : channel.id === "telegram"
-                    ? "@ian_morgan"
-                    : channel.label}
-              </p>
-            </a>
-          ))}
         </div>
 
         <div className="mt-10">
