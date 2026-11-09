@@ -14,6 +14,7 @@ type RoommateProfile = {
   name: string;
   age: number;
   school: string;
+  gender: string;
   location: string;
   budget: number;
   moveIn: string;
@@ -37,6 +38,7 @@ const translations = {
     monthlyBudget: "Monthly budget",
     location: "Location",
     school: "School",
+    gender: "Gender",
     moveIn: "Move-in",
     interests: "Interests",
     lifestyle: "Lifestyle",
@@ -66,6 +68,7 @@ const translations = {
     monthlyBudget: "Bajeti ya mwezi",
     location: "Eneo",
     school: "Chuo",
+    gender: "Jinsia",
     moveIn: "Kuhamia",
     interests: "Anapenda",
     lifestyle: "Lifestyle",
@@ -95,6 +98,7 @@ const translations = {
     monthlyBudget: "Budget ya mwezi",
     location: "Area",
     school: "Campus",
+    gender: "Gender",
     moveIn: "Move-in",
     interests: "Vitu anapenda",
     lifestyle: "Lifestyle",
@@ -493,6 +497,7 @@ export default function RoommateProfilePage({
                 </p>
 
                 <p className="mt-1 font-semibold">{profile.school}</p>
+                {profile.gender && <p className="mt-3 text-sm font-semibold text-emerald-800">{t.gender}: {profile.gender}</p>}
 
                 <div className="my-5 h-px bg-[#dfe5dd]" />
 

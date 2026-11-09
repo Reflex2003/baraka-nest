@@ -7,10 +7,10 @@ Baraka Nest is a student housing and roommate discovery app built with Next.js, 
 1. Install dependencies with `npm install`.
 2. Copy `.env.example` to `.env.local`.
 3. Set `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `BETTER_AUTH_SECRET` (at least 32 random characters), and `BETTER_AUTH_URL`.
-4. Create a Vercel Blob store and set its real `BLOB_READ_WRITE_TOKEN` in `.env.local`. For a linked Vercel project, the Vercel CLI can pull the development variables with `vercel env pull .env.local`.
+4. Create a Vercel Blob store and connect it to the project. For local development, use its `BLOB_READ_WRITE_TOKEN`, or link the project and pull its development variables with `vercel env pull .env.local` (Vercel OIDC also needs `BLOB_STORE_ID`).
 5. Start the app with `npm run dev`.
 
-Uploads use Vercel Blob client uploads. The token must belong to a Blob store connected to this Vercel project and be available in the environment serving the app (Development, Preview, and/or Production as needed). After changing a Vercel environment variable, redeploy the affected deployment. Never commit `.env.local` or share the token publicly. A placeholder such as `your-vercel-blob-read-write-token` cannot authorize uploads.
+Uploads use Vercel Blob client uploads. The store must be connected to this Vercel project. The app accepts a real `BLOB_READ_WRITE_TOKEN`, or Vercel OIDC credentials paired with `BLOB_STORE_ID`. After changing a Vercel environment variable or store connection, redeploy the affected deployment. Never commit `.env.local` or share credentials publicly. A placeholder such as `your-vercel-blob-read-write-token` cannot authorize uploads.
 
 The app uses Turso for both authentication/session data and roommate profiles/connections. It fails early when the database URL or auth secret is missing.
 

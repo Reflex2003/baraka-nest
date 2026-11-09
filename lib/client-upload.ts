@@ -67,6 +67,6 @@ export async function uploadUserFile(
       if (diagnosticError instanceof Error && diagnosticError.message) throw diagnosticError;
     }
 
-    throw new Error("Vercel Blob could not issue an upload token. Check that this deployment has a valid BLOB_READ_WRITE_TOKEN connected to its Blob store, then sign in again and retry.");
+    throw new Error("Vercel Blob needs BLOB_READ_WRITE_TOKEN. In Vercel, open Storage → your Blob store → Settings/Connections, edit its Baraka Nest connection, enable 'Add a read-write token env var', save, then redeploy.");
   }
 }

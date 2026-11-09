@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Navbar from "../../navbar";
 import { useLanguage, type Language } from "../../language-context";
+import { profileAvatars } from "@/lib/profile-avatars";
 
 const interestOptions = [
   "Football",
@@ -83,6 +85,9 @@ const translations = {
       "Profile was created but no profile ID was returned.",
     submitError:
       "Something went wrong while creating your profile.",
+    avatar: "Choose an avatar or upload a photo (optional)",
+    gender: "Gender (optional)",
+    customGender: "How do you identify? e.g. spoon or cow 😄",
   },
 
   Swahili: {
@@ -125,6 +130,9 @@ const translations = {
       "Profile imetengenezwa lakini profile ID haikupatikana.",
     submitError:
       "Kuna tatizo wakati wa kutengeneza profile yako.",
+    avatar: "Chagua avatar au upload picha (si lazima)",
+    gender: "Jinsia (si lazima)",
+    customGender: "Unajitambulisha vipi? mfano spoon ama cow 😄",
   },
 
   Sheng: {
@@ -167,6 +175,9 @@ const translations = {
       "Profile imecreate lakini profile ID haikurudi.",
     submitError:
       "Kuna noma imehappen wakati wa kucreate profile.",
+    avatar: "Chagua avatar ama upload picha (optional)",
+    gender: "Gender (optional)",
+    customGender: "Unajitambulisha aje? mfano spoon ama cow 😄",
   },
 };
 
@@ -242,6 +253,10 @@ export default function CreateRoommatePage() {
   const [budget, setBudget] = useState("");
   const [moveIn, setMoveIn] = useState("");
   const [preference, setPreference] = useState("");
+  const [genderChoice, setGenderChoice] = useState("");
+  const [customGender, setCustomGender] = useState("");
+  const [avatarId, setAvatarId] = useState("");
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [about, setAbout] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
   const [lifestyle, setLifestyle] = useState<string[]>([]);
@@ -283,6 +298,22 @@ export default function CreateRoommatePage() {
     setLoading(true);
 
     try {
+      if (profilePhoto) {
+        const formData = new FormData();
+        formData.set("avatar", profilePhoto);
+        const uploadResponse = await fetch("/api/profile/avatar", { method: "POST", body: formData });
+        const uploadResult = await uploadResponse.json();
+        if (!uploadResponse.ok) throw new Error(uploadResult.error || "Profile photo upload failed.");
+      } else if (avatarId) {
+        const avatarResponse = await fetch("/api/profile/avatar/selection", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ avatarId }),
+        });
+        const avatarResult = await avatarResponse.json();
+        if (!avatarResponse.ok) throw new Error(avatarResult.error || "Could not save selected avatar.");
+      }
+
       const response = await fetch("/api/roommates", {
         method: "POST",
         headers: {
@@ -296,6 +327,7 @@ export default function CreateRoommatePage() {
           budget: Number(budget),
           moveIn,
           preference,
+          gender: genderChoice === "Self-describe" ? customGender.trim() : genderChoice,
           about: about.trim(),
           interests,
           lifestyle,
@@ -417,6 +449,34 @@ export default function CreateRoommatePage() {
                   required
                   className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none transition focus:border-black"
                 />
+              </div>
+
+              <div className="md:col-span-2 rounded-3xl border border-black/10 bg-[#f7f7f5] p-5">
+                <label className="text-sm font-bold">{t.avatar}</label>
+                <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-6">
+                  {profileAvatars.map((avatar) => (
+                    <button key={avatar.id} type="button" aria-label={`Choose ${avatar.name}`} aria-pressed={avatarId === avatar.id}
+                      onClick={() => { setAvatarId(avatar.id); setProfilePhoto(null); }}
+                      className={`rounded-2xl border p-2 transition ${avatarId === avatar.id ? "border-emerald-700 bg-emerald-50 ring-2 ring-emerald-700" : "border-black/10 bg-white hover:border-black/40"}`}>
+                      <Image src={avatar.src} alt={avatar.name} width={72} height={72} className="mx-auto h-14 w-14 rounded-full object-cover" />
+                      <span className="mt-1 block truncate text-xs font-semibold">{avatar.name}</span>
+                    </button>
+                  ))}
+                </div>
+                <label className="mt-4 block text-sm font-semibold">Or upload your own photo</label>
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { setProfilePhoto(event.target.files?.[0] ?? null); if (event.target.files?.[0]) setAvatarId(""); }} className="mt-2 block w-full text-sm" />
+                <p className="mt-1 text-xs text-black/45">Optional · image up to 5 MB</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-bold">{t.gender}</label>
+                <select value={genderChoice} onChange={(event) => setGenderChoice(event.target.value)} className="mt-2 w-full rounded-2xl border border-black/10 bg-[#f7f7f5] px-5 py-4 outline-none focus:border-black">
+                  <option value="">Prefer not to say</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Self-describe">I identify as…</option>
+                </select>
+                {genderChoice === "Self-describe" && <input value={customGender} maxLength={60} onChange={(event) => setCustomGender(event.target.value)} placeholder={t.customGender} className="mt-3 w-full rounded-2xl border border-black/10 bg-white px-5 py-4 outline-none focus:border-black" />}
               </div>
             </div>
           </section>

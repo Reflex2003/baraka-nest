@@ -281,6 +281,35 @@ export function ensureFeatureTables() {
       )
       .execute();
 
+    const announcementColumns = await db.executeQuery(
+      CompiledQuery.raw("PRAGMA table_info(announcement)", []),
+    );
+    const existingAnnouncementColumns = new Set(
+      announcementColumns.rows.map((row) =>
+        String((row as { name?: unknown }).name),
+      ),
+    );
+
+    if (!existingAnnouncementColumns.has("is_published")) {
+      try {
+        await db.schema
+          .alterTable("announcement")
+          .addColumn("is_published", "integer", (column) =>
+            column.notNull().defaultTo(0),
+          )
+          .execute();
+      } catch (error) {
+        // Multiple serverless instances can discover the missing column at once.
+        const refreshedColumns = await db.executeQuery(
+          CompiledQuery.raw("PRAGMA table_info(announcement)", []),
+        );
+        const columnExists = refreshedColumns.rows.some(
+          (row) => String((row as { name?: unknown }).name) === "is_published",
+        );
+        if (!columnExists) throw error;
+      }
+    }
+
     await db.schema
       .createTable("announcement_attachment")
       .ifNotExists()
@@ -326,6 +355,29 @@ export function ensureFeatureTables() {
           column.notNull().defaultTo(0),
         )
         .execute();
+    }
+
+    const roommateProfileColumns = await db.executeQuery(
+      CompiledQuery.raw("PRAGMA table_info(roommate_profile)", []),
+    );
+    const existingRoommateProfileColumns = new Set(
+      roommateProfileColumns.rows.map((row) => String((row as { name?: unknown }).name)),
+    );
+    if (!existingRoommateProfileColumns.has("gender")) {
+      try {
+        await db.schema
+          .alterTable("roommate_profile")
+          .addColumn("gender", "text", (column) => column.notNull().defaultTo(""))
+          .execute();
+      } catch (error) {
+        const refreshedColumns = await db.executeQuery(
+          CompiledQuery.raw("PRAGMA table_info(roommate_profile)", []),
+        );
+        const columnExists = refreshedColumns.rows.some(
+          (row) => String((row as { name?: unknown }).name) === "gender",
+        );
+        if (!columnExists) throw error;
+      }
     }
 
     for (const house of houses) {

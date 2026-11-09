@@ -21,6 +21,7 @@ type RoommateProfileRow = {
   about: string;
   interests: string;
   lifestyle: string;
+  gender: string;
   created_at: string;
   updated_at: string;
   profile_image: string | null;
@@ -61,6 +62,7 @@ function formatProfile(profile: RoommateProfileRow) {
     about: profile.about,
     interests: parseJsonArray(profile.interests),
     lifestyle: parseJsonArray(profile.lifestyle),
+    gender: profile.gender ?? "",
   };
 }
 
@@ -157,6 +159,8 @@ export async function POST(request: Request) {
       );
     }
 
+    await ensureFeatureTables();
+
     const existingProfile = await getRoommateProfileByUserId(session.user.id);
 
     if (existingProfile) {
@@ -188,6 +192,7 @@ export async function POST(request: Request) {
     const budget = Number(body.budget);
     const moveIn = String(body.moveIn ?? "").trim();
     const preference = String(body.preference ?? "").trim();
+    const gender = String(body.gender ?? "").trim().slice(0, 60);
     const about = String(body.about ?? "").trim();
 
     const interests = Array.isArray(body.interests)
@@ -281,6 +286,7 @@ export async function POST(request: Request) {
               about,
               interests,
               lifestyle
+              , gender
             )
             VALUES (
               @id,
@@ -296,6 +302,7 @@ export async function POST(request: Request) {
               @about,
               @interests,
               @lifestyle
+              , @gender
             )
           `,
         )
@@ -313,6 +320,7 @@ export async function POST(request: Request) {
           about,
           interests: JSON.stringify(interests),
           lifestyle: JSON.stringify(lifestyle),
+          gender,
         });
     } catch (insertError) {
       const message =

@@ -17,6 +17,7 @@ type RoommateProfileRow = {
   about: string;
   interests: string;
   lifestyle: string;
+  gender: string;
   profile_image: string | null;
 };
 
@@ -93,6 +94,7 @@ export async function GET(
         about: profile.about,
         interests: parseJsonArray(profile.interests),
         lifestyle: parseJsonArray(profile.lifestyle),
+        gender: profile.gender ?? "",
       },
     });
   } catch (error) {

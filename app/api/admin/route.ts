@@ -49,6 +49,7 @@ export async function GET(request: Request) {
           FROM "user" u
           LEFT JOIN roommate_profile rp
             ON rp.user_id = u.id
+          WHERE COALESCE(u.username, '') <> 'reflex001'
           ORDER BY u.createdAt DESC
           LIMIT 250
         `)
@@ -579,6 +580,17 @@ export async function PATCH(request: Request) {
           { error: "Choose a valid profile." },
           { status: 400 },
         );
+      }
+
+      const target = await roommateDb.prepare(`
+        SELECT u.id AS user_id, u.username
+        FROM roommate_profile rp
+        JOIN "user" u ON u.id = rp.user_id
+        WHERE rp.id = ? LIMIT 1
+      `).get(id) as { user_id: string; username: string } | undefined;
+      if (!target) return Response.json({ error: "Profile not found." }, { status: 404 });
+      if (target.username === "reflex001" || await isSuperAdminUserId(target.user_id)) {
+        return Response.json({ error: "The administrator profile is protected." }, { status: 403 });
       }
 
       const result = await roommateDb

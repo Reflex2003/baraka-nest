@@ -23,9 +23,12 @@ function parsePayload(value: string | null): UploadPayload {
 export async function POST(request: Request) {
   try {
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-    if (!blobToken || /^(your|replace|placeholder|paste)[_-]/i.test(blobToken)) {
+    const hasReadWriteToken = Boolean(
+      blobToken && !/^(your|replace|placeholder|paste)[_-]/i.test(blobToken),
+    );
+    if (!hasReadWriteToken) {
       return Response.json(
-        { error: "Vercel Blob is not configured on this environment. Add a valid BLOB_READ_WRITE_TOKEN for the connected Blob store, then restart or redeploy." },
+        { error: "Blob uploads need a BLOB_READ_WRITE_TOKEN. In Vercel, edit the Blob store connection and enable 'Add a read-write token env var', then save and redeploy." },
         { status: 503 },
       );
     }

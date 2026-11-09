@@ -14,6 +14,7 @@ type RoommateProfile = {
   name: string;
   age: number;
   school: string;
+  gender: string;
   location: string;
   budget: number;
   moveIn: string;
@@ -76,6 +77,7 @@ const translations = {
 
     age: "Age",
     school: "School",
+    gender: "Gender",
     area: "Area",
     budget: "Budget",
     moveIn: "Move in",
@@ -144,6 +146,7 @@ const translations = {
 
     age: "Umri",
     school: "Chuo",
+    gender: "Jinsia",
     area: "Eneo",
     budget: "Budget",
     moveIn: "Kuhamia",
@@ -212,6 +215,7 @@ const translations = {
 
     age: "Age",
     school: "Chuo",
+    gender: "Gender",
     area: "Area",
     budget: "Budget",
     moveIn: "Move-in",
@@ -690,6 +694,7 @@ export default function RoommatesPage() {
                               {profile.school}
                             </span>
                           </div>
+                          {profile.gender && <div className="flex items-start justify-between gap-5"><span className="text-black/40">{t.gender}</span><span className="max-w-[65%] text-right font-semibold">{profile.gender}</span></div>}
 
                           <div className="flex items-start justify-between gap-5">
                             <span className="text-black/40">
