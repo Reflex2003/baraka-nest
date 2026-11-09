@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "./language-context";
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
       "Find your space. Find your people. Student housing and roommate matching across Kenya.",
     images: [
       {
-        url: "/baraka-nest-preview.png",
+        url: "/baraka-nest-preview.png?v=20261109",
         width: 512,
         height: 512,
         alt: "Baraka Nest — Find Your Place",
@@ -39,7 +40,7 @@ export const metadata: Metadata = {
     title: "Baraka Nest — Find Your Place",
     description:
       "Find your space. Find your people. Student housing and roommate matching across Kenya.",
-    images: ["/baraka-nest-preview.png"],
+    images: ["/baraka-nest-preview.png?v=20261109"],
   },
 };
 
@@ -53,6 +54,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col pb-16 lg:pb-0">
         <LanguageProvider>{children}</LanguageProvider>
+        <Analytics />
       </body>
     </html>
   );

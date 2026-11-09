@@ -12,6 +12,7 @@
   "dependencies": {
     "@libsql/client": "^0.18.0",
     "@libsql/kysely-libsql": "^0.4.1",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.2",
     "better-auth": "^1.7.12",
     "better-sqlite3": "^13.0.3",
