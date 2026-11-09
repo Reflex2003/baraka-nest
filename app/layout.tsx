@@ -28,9 +28,9 @@ export const metadata: Metadata = {
       "Find your space. Find your people. Student housing and roommate matching across Kenya.",
     images: [
       {
-        url: "/baraka-nest-preview-v2.png?v=20261109",
-        width: 1200,
-        height: 630,
+        url: "/baraka-nest-preview.png?v=20261109",
+        width: 512,
+        height: 512,
         alt: "Baraka Nest — Find Your Place",
       },
     ],
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     title: "Baraka Nest — Find Your Place",
     description:
       "Find your space. Find your people. Student housing and roommate matching across Kenya.",
-    images: ["/baraka-nest-preview-v2.png?v=20261109"],
+    images: ["/baraka-nest-preview.png?v=20261109"],
   },
 };
 
