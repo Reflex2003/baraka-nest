@@ -47,6 +47,10 @@ const translations = {
     requestSent: "Request sent",
     profileNotFound: "Profile not found",
     profileNotFoundText: "This roommate profile does not exist.",
+    gateTitle: "Become a Roommate Finder",
+    gateMessage:
+      "You can't view available roommate profiles yet. To protect users and keep the roommate matching community useful, you need to register as a Roommate Finder first.",
+    gateCta: "Register as a Roommate Finder",
     backToRoommates: "Back to roommates",
     loading: "Loading profile...",
     connectionError: "Something went wrong. Please try again.",
@@ -77,6 +81,10 @@ const translations = {
     requestSent: "Ombi limetumwa",
     profileNotFound: "Profile haijapatikana",
     profileNotFoundText: "Profile hii ya roommate haipo.",
+    gateTitle: "Kuwa Roommate Finder",
+    gateMessage:
+      "Bado huwezi kuona roommate profiles zilizopo. Ili kuwalinda wanafunzi na kuweka jamii ya roommate matching kuwa muhimu, unahitaji kujisajili kama Roommate Finder kwanza.",
+    gateCta: "Jisajili kama Roommate Finder",
     backToRoommates: "Rudi kwa roommates",
     loading: "Inapakia profile...",
     connectionError: "Kuna tatizo. Jaribu tena.",
@@ -107,6 +115,10 @@ const translations = {
     requestSent: "Request imetumwa",
     profileNotFound: "Profile haipatikani",
     profileNotFoundText: "Hii profile ya roommate haiko.",
+    gateTitle: "Kuwa Roommate Finder",
+    gateMessage:
+      "Bado huwezi kuona roommate profiles ziko available. Kulinda wasee na kuweka roommate matching community ikuwe poa kweli, unahitaji kujisajili kama Roommate Finder kwanza.",
+    gateCta: "Register kama Roommate Finder",
     backToRoommates: "Rudi kwa roommates",
     loading: "Inaload profile...",
     connectionError: "Kuna noma imehappen. Jaribu tena.",
@@ -134,6 +146,7 @@ export default function RoommateProfilePage({
   const [profile, setProfile] = useState<RoommateProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [gated, setGated] = useState(false);
 
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -162,8 +175,22 @@ export default function RoommateProfilePage({
         });
 
         if (!response.ok) {
+          let gateRequired = false;
+
+          try {
+            const data = await response.json();
+            gateRequired = data?.code === "roommate_profile_required";
+          } catch {
+            gateRequired = false;
+          }
+
           if (active) {
-            setNotFound(true);
+            if (gateRequired) {
+              setGated(true);
+            } else {
+              setNotFound(true);
+            }
+
             setLoading(false);
           }
 
@@ -320,6 +347,37 @@ export default function RoommateProfilePage({
                 <div className="h-64 rounded-3xl bg-[#f0f3ed]" />
               </div>
             </div>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (gated) {
+    return (
+      <>
+        <Navbar />
+
+        <main className="min-h-screen bg-[#faf9f6] px-6 py-12 text-[#183b2c]">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#e9eee6] text-2xl font-black">
+              BN
+            </div>
+
+            <h1 className="mt-6 text-4xl font-bold">
+              {t.gateTitle}
+            </h1>
+
+            <p className="mx-auto mt-4 max-w-md leading-7 text-[#68776d]">
+              {t.gateMessage}
+            </p>
+
+            <Link
+              href="/roommates/create"
+              className="mt-7 inline-block rounded-2xl bg-[#183b2c] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#285640]"
+            >
+              {t.gateCta}
+            </Link>
           </div>
         </main>
       </>

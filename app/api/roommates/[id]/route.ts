@@ -1,6 +1,6 @@
 import { auth } from "@/lib/better-auth";
 import { ensureFeatureTables } from "@/lib/db";
-import { getRoommateProfileById } from "@/lib/roommate-db";
+import { getRoommateProfileById, getRoommateProfileByUserId } from "@/lib/roommate-db";
 import { roommateDb } from "@/lib/roommate-db";
 import { isSameOriginMutation } from "@/lib/request-security";
 
@@ -45,6 +45,22 @@ export async function GET(
   try {
     const session = await auth.api.getSession({ headers: request.headers });
     await ensureFeatureTables();
+
+    // Only registered Roommate Finders may view individual profiles. Direct
+    // URL access from users without a roommate profile is denied entirely.
+    const currentProfile = session?.user
+      ? await getRoommateProfileByUserId(session.user.id)
+      : undefined;
+    if (!currentProfile) {
+      return Response.json(
+        {
+          error: "Create a roommate profile to view available profiles.",
+          code: "roommate_profile_required",
+        },
+        { status: 403 },
+      );
+    }
+
     const { id } = await params;
     const profileId = String(id ?? "").trim();
 

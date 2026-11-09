@@ -101,6 +101,12 @@ const translations = {
 
     createProfile: "Create a profile",
 
+    gateEyebrow: "Roommates",
+    gateTitle: "Become a Roommate Finder",
+    gateMessage:
+      "You can't view available roommate profiles yet. To protect users and keep the roommate matching community useful, you need to register as a Roommate Finder first.",
+    gateCta: "Register as a Roommate Finder",
+
     joinBaraka: "Join Baraka Nest",
     journeyTitle: "Looking for someone",
     journeyTitleSecond: "to share the journey?",
@@ -169,6 +175,12 @@ const translations = {
       "Jaribu kubadilisha search au filters. Kama wewe ni mpya hapa, unaweza pia kutengeneza profile ya kwanza.",
 
     createProfile: "Tengeneza profile",
+
+    gateEyebrow: "Roommates",
+    gateTitle: "Kuwa Roommate Finder",
+    gateMessage:
+      "Bado huwezi kuona roommate profiles zilizopo. Ili kuwalinda wanafunzi na kuweka jamii ya roommate matching kuwa muhimu, unahitaji kujisajili kama Roommate Finder kwanza.",
+    gateCta: "Jisajili kama Roommate Finder",
 
     joinBaraka: "Jiunge na Baraka Nest",
     journeyTitle: "Unatafuta mtu",
@@ -239,6 +251,12 @@ const translations = {
 
     createProfile: "Tengeneza profile",
 
+    gateEyebrow: "Roommates",
+    gateTitle: "Kuwa Roommate Finder",
+    gateMessage:
+      "Bado huwezi kuona roommate profiles ziko available. Kulinda wasee na kuweka roommate matching community ikuwe poa kweli, unahitaji kujisajili kama Roommate Finder kwanza.",
+    gateCta: "Register kama Roommate Finder",
+
     joinBaraka: "Jiunge na Baraka Nest",
     journeyTitle: "Unatafuta mtu",
     journeyTitleSecond: "wa kushare naye journey?",
@@ -281,6 +299,7 @@ export default function RoommatesPage() {
     useState("Any budget");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [gated, setGated] = useState<boolean | null>(null);
   const [pageVisible, setPageVisible] =
     useState(false);
 
@@ -308,6 +327,7 @@ export default function RoommatesPage() {
         }
 
         setProfiles(data.profiles ?? []);
+        setGated(data.hasProfile === false);
       } catch {
         setError(
           "We could not load roommate profiles right now.",
@@ -463,7 +483,8 @@ export default function RoommatesPage() {
 
       <section className="border-b border-black/10 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
-          <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr]">
+          {gated !== true && (
+            <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr]">
             <div className="relative transition-transform duration-300 focus-within:-translate-y-0.5">
               <svg
                 className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-black/35"
@@ -519,11 +540,39 @@ export default function RoommatesPage() {
                 </option>
               ))}
             </select>
-          </div>
+            </div>
+          )}
         </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
+        {gated === true ? (
+          <div className="mx-auto max-w-2xl animate-[fadeIn_0.5s_ease-out] rounded-[2rem] border border-black/10 bg-[#f7f7f5] px-6 py-16 text-center sm:px-12">
+            <div className="mx-auto flex h-16 w-16 animate-[float_3s_ease-in-out_infinite] items-center justify-center rounded-full bg-black text-2xl font-black text-white">
+              BN
+            </div>
+
+            <p className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-black/35">
+              {t.gateEyebrow}
+            </p>
+
+            <h3 className="mt-3 text-3xl font-black tracking-tight">
+              {t.gateTitle}
+            </h3>
+
+            <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-black/55">
+              {t.gateMessage}
+            </p>
+
+            <Link
+              href="/roommates/create"
+              className="mt-8 inline-flex rounded-full bg-black px-7 py-4 text-sm font-black text-white transition-all duration-300 hover:-translate-y-1 hover:bg-black/80 hover:shadow-xl active:scale-95"
+            >
+              {t.gateCta}
+            </Link>
+          </div>
+        ) : (
+          <>
         <div
           className={`mb-10 flex items-end justify-between gap-6 transition-all duration-700 ${
             pageVisible
@@ -788,6 +837,8 @@ export default function RoommatesPage() {
               )}
             </div>
           )}
+          </>
+        )}
       </section>
 
       <section className="relative overflow-hidden border-t border-black/10 bg-black text-white">

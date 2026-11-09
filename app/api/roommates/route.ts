@@ -111,10 +111,19 @@ export async function GET(request: Request) {
     });
 
     await ensureFeatureTables();
-    const profiles = (await getAllRoommateProfiles()) as unknown as RoommateProfileRow[];
+
+    // Registered Roommate Finders are the only users allowed to view available
+    // profiles. Users without a roommate profile (including signed-out
+    // visitors) must never receive profile data from this endpoint.
     const currentProfile = session?.user
       ? await getRoommateProfileByUserId(session.user.id) as unknown as RoommateProfileRow | undefined
       : undefined;
+
+    if (!currentProfile) {
+      return Response.json({ profiles: [], hasProfile: false });
+    }
+
+    const profiles = (await getAllRoommateProfiles()) as unknown as RoommateProfileRow[];
     const blockedIds = session?.user
       ? await roommateDb.prepare(`
           SELECT blocked_user_id AS user_id FROM user_block WHERE blocker_user_id = ?
@@ -135,11 +144,9 @@ export async function GET(request: Request) {
         }),
       }));
 
-    if (currentProfile) {
-      formattedProfiles.sort((left, right) => Number(right.matchScore) - Number(left.matchScore));
-    }
+    formattedProfiles.sort((left, right) => Number(right.matchScore) - Number(left.matchScore));
 
-    return Response.json({ profiles: formattedProfiles });
+    return Response.json({ profiles: formattedProfiles, hasProfile: true });
   } catch (error) {
     console.error("Roommate profiles error:", error);
 
