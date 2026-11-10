@@ -6,6 +6,7 @@ import Navbar from "../../navbar";
 import { useLanguage, type Language } from "../../language-context";
 import { getMapEmbedUrl, getMapSearchUrl } from "@/lib/houses";
 import type { House } from "./page";
+import HouseMediaGallery from "@/components/HouseMediaGallery";
 
 type Review = {
   id: string;
@@ -71,6 +72,8 @@ const translations = {
     reviewError: "Could not post your review.",
     characters: "characters",
     stars: "stars",
+    safety: "Never send a deposit, rent, booking fee or other payment before viewing the house and confirming who you are dealing with. Pressure like “other students are waiting” is a red flag.",
+    report: "Report listing", reportReason: "Choose a reason", reportDetails: "Add details (optional)", reportSent: "Thanks. Your report was sent for review.", reportError: "Could not send report.", sendReport: "Send report", acknowledgement: "I understand. I will view the house and confirm who I am dealing with before sending any money.", continueContact: "I understand", cancel: "Cancel", verified: "Verified listing", pending: "Pending verification", underReview: "Under review", unverified: "Not verified", verificationNote: "Verification means the listing was reviewed. It does not guarantee the transaction or ongoing availability.", lister: "Lister", memberSince: "Member since", listings: "listings",
   },
 
   Swahili: {
@@ -121,6 +124,8 @@ const translations = {
     reviewError: "Review haikuweza kutumwa.",
     characters: "characters",
     stars: "stars",
+    safety: "Usitume deposit, kodi, booking fee au pesa nyingine kabla hujaona nyumba na kuthibitisha unayeshughulika naye. Wakikuharakisha kwa kusema “students wengine wanangoja”, hiyo ni ishara ya hatari.",
+    report: "Ripoti listing", reportReason: "Chagua sababu", reportDetails: "Ongeza maelezo (si lazima)", reportSent: "Asante. Ripoti yako imetumwa ikaguliwe.", reportError: "Ripoti haikuweza kutumwa.", sendReport: "Tuma ripoti", acknowledgement: "Nimeelewa. Nitaona nyumba na kuthibitisha ninayeshughulika naye kabla ya kutuma pesa.", continueContact: "Nimeelewa", cancel: "Ghairi", verified: "Listing imethibitishwa", pending: "Inasubiri verification", underReview: "Inakaguliwa", unverified: "Haijathibitishwa", verificationNote: "Verification inamaanisha listing imekaguliwa. Haihakikishi transaction wala kupatikana kwa nyumba baadaye.", lister: "Aliyetangaza", memberSince: "Mwanachama tangu", listings: "matangazo",
   },
 
   Sheng: {
@@ -171,6 +176,8 @@ const translations = {
     reviewError: "Review imekataa kupostiwa.",
     characters: "characters",
     stars: "stars",
+    safety: "Usitume deposit, rent, booking fee ama doh ingine kabla uone keja na uconfirm unadeal na nani. Wakikupush juu “wasee wengine wanangoja”, hiyo ni red flag.",
+    report: "Report listing", reportReason: "Chagua reason", reportDetails: "Ongeza details (optional)", reportSent: "Asante. Report imetumwa icheckiwe.", reportError: "Report haikuweza kutumwa.", sendReport: "Tuma report", acknowledgement: "Nimeelewa. Nitaona keja na niconfirm mwenye na-deal naye kabla nitume doh.", continueContact: "Nimeelewa", cancel: "Cancel", verified: "Listing imeverifyiwa", pending: "Inangoja verification", underReview: "Inachekiwa", unverified: "Haijaverifyiwa", verificationNote: "Verification ni kwamba listing imeangaliwa. Hai-guarantee deal ama keja bado iko.", lister: "Alilist", memberSince: "Member tangu", listings: "listings",
   },
 };
 
@@ -296,6 +303,35 @@ export default function HouseDetailClient({
   const [comment, setComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [reviewMessage, setReviewMessage] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState("scam_payment");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportMessage, setReportMessage] = useState("");
+  const [contactReminder, setContactReminder] = useState(false);
+  const [contactError, setContactError] = useState("");
+
+  async function continueToContact() {
+    setContactError("");
+    try {
+      const response = await fetch(`/api/houses/${encodeURIComponent(house.id)}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ acknowledged: true }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || t.signIn);
+      window.location.href = typeof result.href === "string" ? result.href : "/contact";
+    } catch (error) {
+      setContactError(error instanceof Error ? error.message : t.signIn);
+    } finally {
+      setContactReminder(false);
+    }
+  }
+
+  async function submitReport() {
+    try {
+      const response = await fetch(`/api/houses/${encodeURIComponent(house.id)}/reports`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ category: reportCategory, details: reportDetails }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || t.reportError);
+      setReportMessage(t.reportSent); setReportOpen(false);
+    } catch (error) { setReportMessage(error instanceof Error ? error.message : t.reportError); }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -478,6 +514,14 @@ export default function HouseDetailClient({
             </div>
           </div>
         </section>
+
+        {house.verificationStatus && <div className="mt-4 flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-[#f3f4f1] px-3 py-1.5 font-bold">{house.verificationStatus === "verified" ? `🟢 ${t.verified}` : house.verificationStatus === "pending" ? `🟡 ${t.pending}` : house.verificationStatus === "under_review" ? `🔴 ${t.underReview}` : `⚪ ${t.unverified}`}</span><span className="text-black/45">{t.verificationNote}</span></div>}
+        <HouseMediaGallery media={house.media ?? []} name={house.name} language={currentLanguage} />
+        {house.ownerUserId && <p className="mt-3 text-xs text-black/50">{t.lister}: <strong>{house.ownerName || "Student"}</strong>{house.ownerMemberSince && <> · {t.memberSince} {new Date(house.ownerMemberSince).toLocaleDateString()}</>} · {house.ownerListingCount ?? 1} {t.listings}</p>}
+        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">⚠️ {t.safety}</div>
+        <div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" onClick={() => setReportOpen(true)} className="rounded-full border border-[#dce5db] px-4 py-2 text-sm font-semibold">{t.report}</button>{reportMessage && <p role="status" className="text-sm">{reportMessage}</p>}</div>
+        {reportOpen && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><section role="dialog" aria-modal="true" className="w-full max-w-md rounded-3xl bg-white p-6 text-[#183b2c]"><h2 className="text-lg font-bold">{t.report}</h2><select value={reportCategory} onChange={(event)=>setReportCategory(event.target.value)} className="mt-4 min-h-11 w-full rounded-xl border p-3"><option value="scam_payment">Scam / payment request</option><option value="fake_listing">Fake listing</option><option value="wrong_information">Wrong information</option><option value="unavailable">Property unavailable</option><option value="suspicious_media">Suspicious photos or videos</option><option value="misleading">Misleading information</option><option value="other">Other</option></select><textarea value={reportDetails} onChange={(event)=>setReportDetails(event.target.value)} maxLength={1200} rows={4} placeholder={t.reportDetails} className="mt-3 w-full rounded-xl border p-3"/><div className="mt-4 flex justify-end gap-2"><button type="button" onClick={()=>setReportOpen(false)} className="rounded-full border px-4 py-2 text-sm">{t.cancel}</button><button type="button" onClick={()=>void submitReport()} className="rounded-full bg-[#183b2c] px-4 py-2 text-sm font-bold text-white">{t.sendReport}</button></div></section></div>}
+        {contactReminder && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><section role="dialog" aria-modal="true" className="w-full max-w-md rounded-3xl bg-white p-6 text-[#183b2c]"><p className="text-sm leading-6">⚠️ {t.safety}</p><p className="mt-3 text-sm font-semibold">{t.acknowledgement}</p><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={()=>setContactReminder(false)} className="rounded-full border px-4 py-2 text-sm">{t.cancel}</button><button type="button" onClick={()=>void continueToContact()} className="rounded-full bg-[#183b2c] px-4 py-2 text-sm font-bold text-white">{t.continueContact}</button></div></section></div>}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
           <div className="space-y-6">
@@ -825,6 +869,7 @@ export default function HouseDetailClient({
 
               <button
                 type="button"
+                onClick={() => setContactReminder(true)}
                 className="mt-8 h-14 w-full rounded-2xl bg-black text-sm font-semibold text-white transition hover:bg-black/80"
               >
                 {t.interested}
@@ -833,6 +878,7 @@ export default function HouseDetailClient({
               <p className="mt-4 text-center text-xs leading-5 text-black/30">
                 {t.signIn}
               </p>
+              {contactError && <p role="alert" className="mt-2 text-center text-xs text-red-700">{contactError}</p>}
             </div>
 
             <div className="mt-4 rounded-[28px] border border-black/[0.08] bg-white p-6">

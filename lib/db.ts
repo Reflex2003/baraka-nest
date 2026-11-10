@@ -217,6 +217,8 @@ export function ensureFeatureTables() {
       .addColumn("house_id", "text", (column) => column.notNull())
       .addColumn("url", "text", (column) => column.notNull())
       .addColumn("blob_path", "text", (column) => column.notNull())
+      .addColumn("content_type", "text", (column) => column.notNull().defaultTo("image/jpeg"))
+      .addColumn("size", "integer", (column) => column.notNull().defaultTo(0))
       .addColumn("sort_order", "integer", (column) =>
         column.notNull().defaultTo(0),
       )
@@ -227,6 +229,78 @@ export function ensureFeatureTables() {
         column.notNull().defaultTo(sql`CURRENT_TIMESTAMP`),
       )
       .execute();
+
+    const houseColumns = await db.executeQuery(
+      CompiledQuery.raw("PRAGMA table_info(house_listing)", []),
+    );
+    const existingHouseColumns = new Set(
+      houseColumns.rows.map((row) => String((row as { name?: unknown }).name)),
+    );
+    for (const [name, type, defaultValue] of [
+      ["owner_user_id", "text", null],
+      ["verification_status", "text", "unverified"],
+      ["contact_phone", "text", ""],
+    ] as const) {
+      if (!existingHouseColumns.has(name)) {
+        try {
+          await db.schema.alterTable("house_listing")
+            .addColumn(name, type, (column) => defaultValue === null
+              ? column
+              : column.notNull().defaultTo(defaultValue))
+            .execute();
+        } catch (error) {
+          const refreshed = await db.executeQuery(CompiledQuery.raw("PRAGMA table_info(house_listing)", []));
+          if (!refreshed.rows.some((row) => String((row as { name?: unknown }).name) === name)) throw error;
+        }
+      }
+    }
+
+    const houseImageColumns = await db.executeQuery(
+      CompiledQuery.raw("PRAGMA table_info(house_image)", []),
+    );
+    const existingHouseImageColumns = new Set(
+      houseImageColumns.rows.map((row) => String((row as { name?: unknown }).name)),
+    );
+    if (!existingHouseImageColumns.has("content_type")) {
+      try {
+        await db.schema.alterTable("house_image")
+          .addColumn("content_type", "text", (column) => column.notNull().defaultTo("image/jpeg"))
+          .execute();
+      } catch (error) {
+        const refreshed = await db.executeQuery(CompiledQuery.raw("PRAGMA table_info(house_image)", []));
+        if (!refreshed.rows.some((row) => String((row as { name?: unknown }).name) === "content_type")) throw error;
+      }
+    }
+    if (!existingHouseImageColumns.has("size")) {
+      try {
+        await db.schema.alterTable("house_image")
+          .addColumn("size", "integer", (column) => column.notNull().defaultTo(0))
+          .execute();
+      } catch (error) {
+        const refreshed = await db.executeQuery(CompiledQuery.raw("PRAGMA table_info(house_image)", []));
+        if (!refreshed.rows.some((row) => String((row as { name?: unknown }).name) === "size")) throw error;
+      }
+    }
+
+    await db.schema.createTable("house_listing_report")
+      .ifNotExists()
+      .addColumn("id", "text", (column) => column.primaryKey().notNull())
+      .addColumn("house_id", "text", (column) => column.notNull())
+      .addColumn("reporter_user_id", "text", (column) => column.notNull())
+      .addColumn("category", "text", (column) => column.notNull())
+      .addColumn("details", "text", (column) => column.notNull().defaultTo(""))
+      .addColumn("status", "text", (column) => column.notNull().defaultTo("open"))
+      .addColumn("created_at", "text", (column) => column.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+      .execute();
+    await db.schema.createIndex("house_listing_report_house_idx")
+      .ifNotExists().on("house_listing_report").column("house_id").execute();
+
+    await db.executeQuery(CompiledQuery.raw(`
+      CREATE TRIGGER IF NOT EXISTS house_image_max_four
+      BEFORE INSERT ON house_image
+      WHEN (SELECT COUNT(*) FROM house_image WHERE house_id = NEW.house_id) >= 4
+      BEGIN SELECT RAISE(ABORT, 'A listing can have a maximum of 4 media files.'); END
+    `, []));
 
     await db.schema
       .createIndex("house_image_house_idx")

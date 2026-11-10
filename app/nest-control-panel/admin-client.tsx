@@ -60,6 +60,17 @@ type House = {
   };
   hidden: boolean;
   featured: boolean;
+  ownerUserId: string | null;
+  contactPhone: string;
+  verificationStatus: string;
+  ownerName: string | null;
+  ownerMemberSince: string | null;
+  ownerListingCount: number;
+};
+
+type HouseReport = {
+  id: string; house_id: string; category: string; details: string; status: string;
+  created_at: string; house_name: string | null; location: string | null; reporter_name: string;
 };
 
 type AdminData = {
@@ -69,6 +80,7 @@ type AdminData = {
   openReports: number;
   roommateProfiles: number;
   houses: House[];
+  houseReports: HouseReport[];
   loadedAt: string;
 };
 
@@ -86,11 +98,13 @@ type HouseImage = {
   sortOrder: number;
   isCover: boolean;
   createdAt: string;
+  contentType?: string;
+  size?: number;
 };
 
 type HouseForm = Omit<
   House,
-  "id" | "hidden" | "featured"
+  "id" | "hidden" | "featured" | "ownerUserId" | "verificationStatus" | "contactPhone" | "ownerName" | "ownerMemberSince" | "ownerListingCount"
 > & {
   id?: string;
 };
@@ -517,9 +531,9 @@ export default function AdminClient() {
     setPhotoNotice("");
 
     try {
-      if (files.length > 10) {
+      if (houseImages.length + files.length > 4) {
         throw new Error(
-          "You can upload a maximum of 10 photos at once.",
+          "A house listing can have a maximum of 4 media files total.",
         );
       }
 
@@ -1289,7 +1303,7 @@ export default function AdminClient() {
                         Add photos with this new listing
                       </h3>
                       <p className="mt-1 text-xs text-[#718077]">
-                        Photos upload after the listing is saved. Up to 10 images, 25MB each.
+                        Photos upload after the listing is saved. Up to 4 media files total.
                       </p>
                     </div>
                     <label htmlFor="new-house-photo-upload" className={`${button} inline-flex cursor-pointer items-center`}>
@@ -1303,8 +1317,8 @@ export default function AdminClient() {
                       className="sr-only"
                       onChange={(event) => {
                         const files = Array.from(event.target.files ?? []);
-                        if (files.length > 10 || files.some((file) => !file.type.startsWith("image/") || file.size > 25 * 1024 * 1024)) {
-                          setPhotoError("Choose up to 10 image files, each 25MB or smaller.");
+                        if (files.length > 4 || files.some((file) => !file.type.startsWith("image/") || file.size > 25 * 1024 * 1024)) {
+                          setPhotoError("Choose up to 4 image files, each 25MB or smaller.");
                           event.target.value = "";
                           return;
                         }
@@ -1346,7 +1360,7 @@ export default function AdminClient() {
                       </h3>
 
                       <p className="mt-1 text-sm text-[#718077]">
-                        Upload up to 10 images at once. The cover
+                        Upload up to 4 media files total. The cover
                         photo is shown first on the public listing.
                       </p>
                     </div>
@@ -1515,9 +1529,7 @@ export default function AdminClient() {
                   )}
 
                   <p className="mt-4 text-[11px] leading-5 text-[#87938b]">
-                    Images are stored in Vercel Blob while Turso
-                    stores their listing metadata. Maximum 25MB per
-                    image.
+                    Media files are stored in Vercel Blob while Turso stores their listing metadata. Maximum 4 total per listing.
                   </p>
                 </section>
               )}
@@ -1552,9 +1564,18 @@ export default function AdminClient() {
                       <p className="mt-1 text-xs text-[#718077]">
                         {house.location}
                       </p>
+                      <p className="mt-1 text-xs text-[#718077]">
+                        {house.ownerUserId ? `Listed by ${house.ownerName || "Student"} · ${house.ownerListingCount} listing(s) · Contact: ${house.contactPhone || "Not provided"}` : "Baraka Nest listing"}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-[#8b612e]">{house.verificationStatus.replaceAll("_", " ")}</p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      <a href={`/houses/${encodeURIComponent(house.id)}`} target="_blank" rel="noreferrer" className={button}>Preview listing</a>
+                      {house.verificationStatus !== "verified" && house.verificationStatus !== "suspended" && <button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: "house-status", id: house.id, status: "verified" }, house.id)}>Verify</button>}
+                      {house.verificationStatus !== "under_review" && house.verificationStatus !== "suspended" && <button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: "house-status", id: house.id, status: "under_review" }, house.id)}>Under review</button>}
+                      {house.verificationStatus !== "suspended" && <button disabled={Boolean(busy)} className={`${button} text-red-700`} onClick={() => void update({ action: "house-status", id: house.id, status: "suspended" }, house.id)}>Suspend</button>}
+                      {(house.verificationStatus === "suspended" || house.verificationStatus === "under_review") && <button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: "house-status", id: house.id, status: "unverified" }, house.id)}>Restore as unverified</button>}
                       <button
                         disabled={Boolean(busy)}
                         className={button}
@@ -1651,6 +1672,11 @@ export default function AdminClient() {
                   </div>
                 ))}
               </div>
+            </section>
+
+            <section className={`${panel} mb-6`}>
+              <div className="mb-4"><h2 className="text-xl font-extrabold">Listing reports</h2><p className="mt-1 text-sm text-[#718077]">Review reports individually. Multiple reports can prompt a review; listings are not removed automatically.</p></div>
+              {data.houseReports.length === 0 ? <p className="rounded-2xl bg-[#f7f8f4] px-4 py-6 text-sm text-[#718077]">No listing reports have been submitted.</p> : <div className="space-y-3">{data.houseReports.map((report) => <article key={report.id} className="rounded-2xl border border-[#edf0eb] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-bold">{report.house_name || "Unknown listing"} · {report.category.replaceAll("_", " ")} <span className="ml-2 text-xs font-normal">{report.status}</span></p><p className="mt-1 text-xs text-[#718077]">{report.location || ""} · reported by {report.reporter_name} · {new Date(report.created_at).toLocaleDateString()}</p>{report.details && <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#526258]">{report.details}</p>}</div><div className="flex flex-wrap gap-2"><a href={`/houses/${encodeURIComponent(report.house_id)}`} target="_blank" rel="noreferrer" className={button}>Review listing</a><button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: "house-status", id: report.house_id, status: "under_review" }, report.house_id)}>Hide for review</button>{report.status === "open" && <><button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: "house-report-status", id: report.id, status: "resolved" }, report.id)}>Resolve</button><button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: "house-report-status", id: report.id, status: "dismissed" }, report.id)}>Dismiss</button></>}</div></div></article>)}</div>}
             </section>
 
             <section className={`${panel} mb-6`}>

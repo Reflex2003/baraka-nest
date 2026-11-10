@@ -65,14 +65,17 @@ export async function POST(request: Request) {
         if (payload.kind === "house-image") {
           const houseId = typeof payload.houseId === "string" ? payload.houseId : "";
           const house = houseId
-            ? await roommateDb.prepare("SELECT id FROM house_listing WHERE id = ? LIMIT 1").get(houseId)
+            ? await roommateDb.prepare("SELECT id, owner_user_id FROM house_listing WHERE id = ? LIMIT 1").get(houseId) as { id: string; owner_user_id: string | null } | undefined
             : null;
-          if (!house || !safePath.startsWith(`houses/${houseId}/`) || safePath.includes("..")) {
+          const isAdmin = await isSuperAdminUserId(session.user.id);
+          if (!house || (house.owner_user_id !== session.user.id && !isAdmin) || !safePath.startsWith(`houses/${houseId}/`) || safePath.includes("..")) {
             throw new Error("Choose a valid housing listing before uploading photos.");
           }
+          const mediaCount = await roommateDb.prepare("SELECT COUNT(*) AS count FROM house_image WHERE house_id = ?").get(houseId) as { count: number };
+          if (Number(mediaCount.count) >= 4) throw new Error("A house listing can have a maximum of 4 media files.");
           return {
-            allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"],
-            maximumSizeInBytes: 25 * 1024 * 1024,
+            allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "video/mp4", "video/webm"],
+            maximumSizeInBytes: 100 * 1024 * 1024,
             addRandomSuffix: false,
             tokenPayload: JSON.stringify({ kind: payload.kind, userId: session.user.id, houseId }),
           };

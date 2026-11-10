@@ -16,6 +16,21 @@ export type HouseListing = {
   description: string;
   amenities: string[];
   coordinates: { lat: number; lon: number };
+  ownerUserId?: string | null;
+  verificationStatus?: "pending" | "verified" | "unverified" | "under_review" | "suspended";
+  contactPhone?: string;
+  ownerName?: string | null;
+  ownerMemberSince?: string | null;
+  ownerListingCount?: number;
+  media?: HouseMedia[];
+};
+
+export type HouseMedia = {
+  id: string;
+  url: string;
+  contentType: string;
+  isCover: boolean;
+  sortOrder: number;
 };
 
 export const houses: HouseListing[] = [

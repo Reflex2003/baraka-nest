@@ -6,6 +6,8 @@ type HouseImageRow = {
   house_id: string;
   url: string;
   blob_path: string;
+  content_type?: string;
+  size?: number;
   sort_order: number;
   is_cover: number;
   created_at: string;
@@ -34,6 +36,8 @@ export async function GET(
           house_id,
           url,
           blob_path,
+          content_type,
+          size,
           sort_order,
           is_cover,
           created_at
@@ -51,6 +55,8 @@ export async function GET(
           houseId: row.house_id,
           url: row.url,
           blobPath: row.blob_path,
+          contentType: row.content_type ?? "image/jpeg",
+          size: Number(row.size ?? 0),
           sortOrder: Number(row.sort_order),
           isCover: Boolean(row.is_cover),
           createdAt: row.created_at,

@@ -61,6 +61,7 @@ const translations = {
     saveSearch: "Notify me about matching homes",
     searchSaved: "Search saved. We’ll show matching new homes in notifications.",
     saveSearchError: "Sign in to save this search.",
+    createListing: "List your house",
   },
 
   Swahili: {
@@ -113,6 +114,7 @@ const translations = {
     saveSearch: "Nijulishe nyumba zinazolingana",
     searchSaved: "Search imehifadhiwa. Nyumba mpya zinazolingana zitaonekana kwenye notifications.",
     saveSearchError: "Ingia ili kuhifadhi search hii.",
+    createListing: "Tangaza nyumba yako",
   },
 
   Sheng: {
@@ -165,6 +167,7 @@ const translations = {
     saveSearch: "Nijulishe nyumba zinazofit",
     searchSaved: "Search imehifadhiwa. Nyumba mpya zinazofit zitaonekana kwa notifications.",
     saveSearchError: "Log in ndio u-save hii search.",
+    createListing: "List keja yako",
   },
 };
 
@@ -673,6 +676,7 @@ export default function HousesPage() {
               ))}
             </div>
           </div>
+          <Link href="/houses/create" className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#183b2c] px-5 text-sm font-bold text-white">{t.createListing}</Link>
         </div>
 
         {view === "map" &&

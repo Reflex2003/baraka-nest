@@ -10,7 +10,7 @@ import { isSameOriginMutation } from "@/lib/request-security";
 
 export const runtime = "nodejs";
 
-const MAX_FILES_PER_UPLOAD = 10;
+const MAX_FILES_PER_UPLOAD = 4;
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 type HouseImageRow = {
@@ -18,6 +18,8 @@ type HouseImageRow = {
   house_id: string;
   url: string;
   blob_path: string;
+  content_type?: string;
+  size?: number;
   sort_order: number;
   is_cover: number;
   created_at: string;
@@ -69,6 +71,8 @@ async function getHouseImages(houseId: string) {
         house_id,
         url,
         blob_path,
+        content_type,
+        size,
         sort_order,
         is_cover,
         created_at
@@ -84,6 +88,8 @@ async function getHouseImages(houseId: string) {
     houseId: row.house_id,
     url: row.url,
     blobPath: row.blob_path,
+    contentType: row.content_type ?? "image/jpeg",
+    size: Number(row.size ?? 0),
     sortOrder: Number(row.sort_order),
     isCover: Number(row.is_cover) === 1,
     createdAt: row.created_at,
@@ -173,6 +179,9 @@ export async function POST(
     }
 
     const existingImages = await getHouseImages(houseId);
+    if (existingImages.length + files.length > 4) {
+      return NextResponse.json({ error: "A house listing can have a maximum of 4 media files total." }, { status: 400 });
+    }
 
     let nextSortOrder =
       existingImages.length > 0
@@ -237,17 +246,21 @@ export async function POST(
             house_id,
             url,
             blob_path,
+            content_type,
+            size,
             sort_order,
             is_cover,
             created_at
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           imageId,
           houseId,
           uploaded.url,
           blobPath,
+          file.type,
+          file.size,
           nextSortOrder,
           isCover ? 1 : 0,
           createdAt,

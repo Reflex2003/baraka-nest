@@ -68,28 +68,32 @@ export async function POST(request: Request) {
       return Response.json({ success: true, avatarUrl: url });
     }
 
-    if (!(await isSuperAdminUserId(session.user.id))) {
-      return Response.json({ error: "Only the admin can save this upload." }, { status: 404 });
-    }
-
     if (kind === "house-image") {
       const houseId = typeof body.houseId === "string" ? body.houseId : "";
-      if (!houseId || !pathname.startsWith(`houses/${houseId}/`) || !contentType.startsWith("image/")) {
+      if (!houseId || !pathname.startsWith(`houses/${houseId}/`) || !(contentType.startsWith("image/") || ["video/mp4", "video/webm"].includes(contentType))) {
         return Response.json({ error: "The housing photo details are invalid." }, { status: 400 });
       }
-      const existing = await roommateDb.prepare("SELECT id FROM house_listing WHERE id = ? LIMIT 1").get(houseId);
+      if (size > 100 * 1024 * 1024) return Response.json({ error: "Media files must be 100MB or smaller." }, { status: 400 });
+      const existing = await roommateDb.prepare("SELECT id, owner_user_id FROM house_listing WHERE id = ? LIMIT 1").get(houseId) as { id: string; owner_user_id: string | null } | undefined;
       if (!existing) return Response.json({ error: "Housing listing not found." }, { status: 404 });
+      if (existing.owner_user_id !== session.user.id && !(await isSuperAdminUserId(session.user.id))) return Response.json({ error: "You can only add media to your own listing." }, { status: 403 });
       const duplicate = await roommateDb.prepare("SELECT id FROM house_image WHERE blob_path = ? LIMIT 1").get(blobPath);
       if (duplicate) return Response.json({ success: true, duplicate: true });
 
+      const existingCount = await roommateDb.prepare("SELECT COUNT(*) AS count FROM house_image WHERE house_id = ?").get(houseId) as { count: number };
+      if (Number(existingCount.count) >= 4) return Response.json({ error: "A house listing can have a maximum of 4 media files. Remove one before adding another." }, { status: 400 });
+
       const imageId = randomUUID();
       const next = await roommateDb.prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS sort_order FROM house_image WHERE house_id = ?").get(houseId) as { sort_order: number };
-      const count = await roommateDb.prepare("SELECT COUNT(*) AS count FROM house_image WHERE house_id = ?").get(houseId) as { count: number };
       await roommateDb.prepare(`
-        INSERT INTO house_image (id, house_id, url, blob_path, sort_order, is_cover)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(imageId, houseId, url, blobPath, next.sort_order, Number(count.count) === 0 ? 1 : 0);
+        INSERT INTO house_image (id, house_id, url, blob_path, content_type, size, sort_order, is_cover)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(imageId, houseId, url, blobPath, contentType, size, next.sort_order, Number(existingCount.count) === 0 ? 1 : 0);
       return Response.json({ success: true, imageId });
+    }
+
+    if (!(await isSuperAdminUserId(session.user.id))) {
+      return Response.json({ error: "Only the admin can save this upload." }, { status: 404 });
     }
 
     if (kind === "announcement-asset") {

@@ -37,6 +37,8 @@ export async function GET(request: Request) {
       openReports,
       listings,
       reviews,
+      houseReports,
+      houseContacts,
     ] = await Promise.all([
       roommateDb
         .prepare(`
@@ -91,7 +93,6 @@ export async function GET(request: Request) {
           FROM house_control
         `)
         .all(),
-
       roommateDb
         .prepare(`
           SELECT COUNT(*) AS count
@@ -131,6 +132,17 @@ export async function GET(request: Request) {
           LIMIT 500
         `)
         .all(),
+      roommateDb.prepare(`
+        SELECT r.id, r.house_id, r.reporter_user_id, r.category, r.details, r.status, r.created_at,
+          h.name AS house_name, h.location,
+          COALESCE(u.name, 'Student') AS reporter_name
+        FROM house_listing_report r
+        LEFT JOIN house_listing h ON h.id = r.house_id
+        LEFT JOIN "user" u ON u.id = r.reporter_user_id
+        ORDER BY CASE r.status WHEN 'open' THEN 0 ELSE 1 END, r.created_at DESC
+        LIMIT 500
+      `).all(),
+      roommateDb.prepare("SELECT id, contact_phone FROM house_listing WHERE owner_user_id IS NOT NULL").all() as Promise<{ id: string; contact_phone: string }[]>,
     ]);
 
     const houseControls = new Map(
@@ -142,6 +154,7 @@ export async function GET(request: Request) {
         }[]
       ).map((item) => [item.house_id, item]),
     );
+    const houseContactNumbers = new Map((houseContacts as { id: string; contact_phone: string }[]).map((item) => [item.id, item.contact_phone]));
 
     return Response.json({
       users,
@@ -175,7 +188,14 @@ export async function GET(request: Request) {
               houseControls.get(house.id)?.is_featured,
             )
           : house.featured,
+        ownerUserId: house.ownerUserId ?? null,
+        verificationStatus: house.verificationStatus ?? "unverified",
+        ownerName: house.ownerName ?? null,
+        ownerMemberSince: house.ownerMemberSince ?? null,
+        ownerListingCount: house.ownerListingCount ?? 0,
+        contactPhone: houseContactNumbers.get(house.id) ?? "",
       })),
+      houseReports,
 
       loadedAt: new Date().toISOString(),
     });
@@ -569,6 +589,15 @@ export async function PATCH(request: Request) {
       return Response.json({ success: true });
     }
 
+    if (action === "house-report-status") {
+      const id = typeof body.id === "string" ? body.id.trim() : "";
+      const status = body.status === "resolved" || body.status === "dismissed" ? body.status : "";
+      if (!id || !status) return Response.json({ error: "Choose a valid listing report update." }, { status: 400 });
+      const result = await roommateDb.prepare("UPDATE house_listing_report SET status = ? WHERE id = ?").run(status, id);
+      if (Number(result.rowsAffected ?? 0) !== 1) return Response.json({ error: "Listing report not found." }, { status: 404 });
+      return Response.json({ success: true });
+    }
+
     if (action === "remove-roommate-profile") {
       const id =
         typeof body.id === "string"
@@ -816,6 +845,15 @@ export async function PATCH(request: Request) {
           body.featured ? 1 : 0,
         );
 
+      return Response.json({ success: true });
+    }
+
+    if (action === "house-status") {
+      const houseId = typeof body.id === "string" ? body.id.trim() : "";
+      const status = ["pending", "verified", "unverified", "under_review", "suspended"].includes(String(body.status)) ? String(body.status) : "";
+      if (!houseId || !status) return Response.json({ error: "Choose a valid listing status." }, { status: 400 });
+      const result = await roommateDb.prepare("UPDATE house_listing SET verification_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(status, houseId);
+      if (Number(result.rowsAffected ?? 0) !== 1) return Response.json({ error: "Listing not found." }, { status: 404 });
       return Response.json({ success: true });
     }
 
