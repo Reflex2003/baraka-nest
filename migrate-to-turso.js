@@ -26,7 +26,8 @@ const tables = [
         "image" TEXT,
         "createdAt" DATE NOT NULL,
         "updatedAt" DATE NOT NULL,
-        "username" TEXT NOT NULL
+        "username" TEXT NOT NULL,
+        "is_suspended" INTEGER NOT NULL DEFAULT 0
       )
     `,
   },
@@ -97,6 +98,7 @@ const tables = [
         about TEXT NOT NULL,
         interests TEXT NOT NULL,
         lifestyle TEXT NOT NULL,
+        is_hidden INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )

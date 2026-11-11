@@ -93,6 +93,8 @@ export async function GET(request: Request) {
           INNER JOIN roommate_profile receiver
             ON receiver.id = cr.receiver_profile_id
           WHERE cr.receiver_user_id = ?
+            AND COALESCE(sender.is_hidden, 0) = 0
+            AND COALESCE(receiver.is_hidden, 0) = 0
           ORDER BY cr.created_at DESC
         `,
       )
@@ -126,6 +128,8 @@ export async function GET(request: Request) {
           INNER JOIN roommate_profile receiver
             ON receiver.id = cr.receiver_profile_id
           WHERE cr.sender_user_id = ?
+            AND COALESCE(sender.is_hidden, 0) = 0
+            AND COALESCE(receiver.is_hidden, 0) = 0
           ORDER BY cr.created_at DESC
         `,
       )
@@ -164,6 +168,8 @@ export async function GET(request: Request) {
               cr.sender_user_id = ?
               OR cr.receiver_user_id = ?
             )
+            AND COALESCE(sender.is_hidden, 0) = 0
+            AND COALESCE(receiver.is_hidden, 0) = 0
           ORDER BY cr.updated_at DESC
         `,
       )

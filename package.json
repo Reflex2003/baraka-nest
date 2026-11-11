@@ -7,6 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --test",
     "migrate:turso": "node migrate-to-turso.js"
   },
   "dependencies": {

@@ -6,15 +6,32 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { kenyaCounties } from "@/lib/kenya-counties";
 import { canonicalHouseType, houseTypes } from "@/lib/house-types";
 import { uploadUserFile } from "@/lib/client-upload";
+import { displayProfileList, formatJoinedAt } from "@/lib/user-management.mjs";
 import AnnouncementManager from "./announcement-manager";
 import ProfileImageViewer from "@/components/ProfileImageViewer";
 
 type User = {
   id: string;
   name: string;
+  username: string;
   email: string;
   createdAt: string;
+  is_suspended: number;
+  is_protected: number;
   roommate_profile_id: string | null;
+  roommate_profile_is_hidden: number;
+  roommate_profile_name: string | null;
+  roommate_profile_age: number | null;
+  roommate_profile_school: string | null;
+  roommate_profile_gender: string | null;
+  roommate_profile_location: string | null;
+  roommate_profile_budget: number | null;
+  roommate_profile_move_in: string | null;
+  roommate_profile_preference: string | null;
+  roommate_profile_about: string | null;
+  roommate_profile_interests: string | null;
+  roommate_profile_lifestyle: string | null;
+  roommate_profile_created_at: string | null;
 };
 
 type Report = {
@@ -75,6 +92,7 @@ type HouseReport = {
 
 type AdminData = {
   users: User[];
+  totalUsers: number;
   reports: Report[];
   reviews: Review[];
   openReports: number;
@@ -143,6 +161,8 @@ export default function AdminClient() {
   const [busy, setBusy] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [userSearch, setUserSearch] = useState("");
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [houseForm, setHouseForm] =
     useState<HouseForm>(emptyHouseForm);
 
@@ -164,7 +184,7 @@ export default function AdminClient() {
     setError("");
 
     try {
-      const response = await fetch("/api/admin", {
+      const response = await fetch(`/api/admin?userSearch=${encodeURIComponent(userSearch)}`, {
         cache: "no-store",
         credentials: "include",
       });
@@ -186,7 +206,7 @@ export default function AdminClient() {
           : "Could not load platform controls.",
       );
     }
-  }, []);
+  }, [userSearch]);
 
   const loadAdminProfile = useCallback(async () => {
     setAvatarError("");
@@ -258,15 +278,16 @@ export default function AdminClient() {
   );
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void refresh();
-      void loadAdminProfile();
-    }, 0);
-
+    const timer = window.setTimeout(() => void refresh(), userSearch ? 300 : 0);
     return () => {
       window.clearTimeout(timer);
     };
-  }, [refresh, loadAdminProfile]);
+  }, [refresh, userSearch]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadAdminProfile(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadAdminProfile]);
 
   async function update(
     payload: Record<string, unknown>,
@@ -882,7 +903,7 @@ export default function AdminClient() {
               aria-label="Platform overview"
             >
               {[
-                ["Student accounts", data.users.length],
+                ["User accounts", data.totalUsers],
                 [
                   "Roommate profiles",
                   data.roommateProfiles,
@@ -1917,78 +1938,109 @@ export default function AdminClient() {
             </section>
 
             <section className={panel}>
-              <div className="mb-4">
-                <h2 className="text-xl font-extrabold">
-                  Student accounts
-                </h2>
-
-                <p className="mt-1 text-sm text-[#718077]">
-                  Review recent accounts and remove roommate
-                  listings that violate platform rules.
-                </p>
+              <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-xl font-extrabold">User management</h2>
+                  <p className="mt-1 text-sm text-[#718077]">
+                    Manage main accounts and roommate visibility as separate items.
+                  </p>
+                </div>
+                <label className="grid gap-1 text-xs font-bold text-[#526258]">
+                  Search users
+                  <input
+                    value={userSearch}
+                    onChange={(event) => setUserSearch(event.target.value)}
+                    placeholder="Name, username, email or ID"
+                    className="min-h-10 w-full rounded-xl border border-[#dce5db] px-3 text-sm font-normal sm:w-72"
+                  />
+                </label>
               </div>
 
               {data.users.length === 0 ? (
-                <p className="text-sm text-[#718077]">
-                  No student accounts found.
-                </p>
+                <p className="text-sm text-[#718077]">No accounts match this search.</p>
               ) : (
-                <div className="divide-y divide-[#edf0eb]">
-                  {data.users.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"
-                    >
-                      <div>
-                        <p className="font-bold">
-                          {user.name || "Student"}
-                        </p>
+                <div className="space-y-3">
+                  {data.users.map((user) => {
+                    const suspended = Number(user.is_suspended) === 1;
+                    const protectedAccount = Number(user.is_protected) === 1;
+                    const hasRoommate = Boolean(user.roommate_profile_id);
+                    const profileHidden = Number(user.roommate_profile_is_hidden) === 1;
+                    const expanded = expandedUserId === user.id;
+                    return (
+                      <article key={user.id} className="rounded-2xl border border-[#edf0eb] p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="min-w-[220px] flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-bold">{user.name || "Student"}</p>
+                              <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${suspended ? "bg-red-50 text-red-700" : "bg-[#eaf2e8] text-[#285640]"}`}>
+                                {suspended ? "Suspended" : "Active"}
+                              </span>
+                              {protectedAccount && <span className="rounded-full bg-[#fff4e8] px-2.5 py-1 text-[11px] font-bold text-[#9a5a20]">Protected admin</span>}
+                            </div>
+                            <p className="mt-1 text-xs text-[#718077]">@{user.username || "—"} · {user.email}</p>
+                            <p className="mt-1 text-xs text-[#718077]">Joined: {formatJoinedAt(user.createdAt)}</p>
+                            <p className="mt-1 text-xs text-[#718077]">
+                              Roommate profile: {hasRoommate ? (profileHidden ? "Hidden" : "Visible") : "None"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button disabled={Boolean(busy)} className={button} onClick={() => setExpandedUserId(expanded ? null : user.id)}>
+                              {expanded ? "Hide details" : "View details"}
+                            </button>
+                            {!protectedAccount && (suspended ? (
+                              <button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: "user-unsuspend", id: user.id }, user.id)}>Unsuspend account</button>
+                            ) : (
+                              <button disabled={Boolean(busy)} className={button} onClick={() => {
+                                if (window.confirm(`Suspend ${user.username || user.name}'s main account? Their active sessions will be signed out. Their roommate profile will remain stored.`)) {
+                                  void update({ action: "user-suspend", id: user.id }, user.id);
+                                }
+                              }}>Suspend account</button>
+                            ))}
+                            {hasRoommate && (
+                              <button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: profileHidden ? "roommate-profile-unhide" : "roommate-profile-hide", id: user.roommate_profile_id }, user.id)}>
+                                {profileHidden ? "Unhide roommate profile" : "Hide roommate profile"}
+                              </button>
+                            )}
+                            {hasRoommate && !protectedAccount && (
+                              <button disabled={Boolean(busy)} className={`${button} text-red-700`} onClick={() => {
+                                if (window.confirm(`Permanently delete only ${user.username || user.name}'s roommate profile? The main account will remain.`)) {
+                                  void update({ action: "remove-roommate-profile", id: user.roommate_profile_id }, user.id);
+                                }
+                              }}>Delete roommate profile</button>
+                            )}
+                          </div>
+                        </div>
 
-                        <p className="mt-1 text-xs text-[#718077]">
-                          {user.email} · Joined{" "}
-                          {new Date(
-                            user.createdAt,
-                          ).toLocaleDateString()}
-                        </p>
-                      </div>
-
-                      {user.roommate_profile_id ? (
-                        <button
-                          disabled={Boolean(busy)}
-                          className={`${button} text-red-700`}
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                "Remove this student's roommate profile? This cannot be undone.",
-                              )
-                            ) {
-                              void update(
-                                {
-                                  action:
-                                    "remove-roommate-profile",
-                                  id: user.roommate_profile_id,
-                                },
-                                user.id,
-                              );
-                            }
-                          }}
-                        >
-                          Remove roommate profile
-                        </button>
-                      ) : (
-                        <span className="rounded-full bg-[#f4f6f2] px-3 py-1.5 text-xs text-[#718077]">
-                          No roommate profile
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                        {expanded && (
+                          <div className="mt-4 grid gap-3 border-t border-[#edf0eb] pt-4 text-sm sm:grid-cols-2">
+                            <p><span className="font-bold">Account ID:</span> <span className="break-all text-[#718077]">{user.id}</span></p>
+                            <p><span className="font-bold">Account status:</span> {suspended ? "Suspended" : "Active"}</p>
+                            {hasRoommate ? (
+                              <div className="sm:col-span-2">
+                                <h3 className="font-extrabold">Roommate profile · {profileHidden ? "Hidden" : "Visible"}</h3>
+                                <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                                  <div><dt className="font-bold">Name / age</dt><dd className="text-[#718077]">{user.roommate_profile_name || "—"}{user.roommate_profile_age ? ` · ${user.roommate_profile_age}` : ""}</dd></div>
+                                  <div><dt className="font-bold">School / gender</dt><dd className="text-[#718077]">{user.roommate_profile_school || "—"} · {user.roommate_profile_gender || "—"}</dd></div>
+                                  <div><dt className="font-bold">Location / monthly budget</dt><dd className="text-[#718077]">{user.roommate_profile_location || "—"} · {user.roommate_profile_budget ? `KSh ${Number(user.roommate_profile_budget).toLocaleString()}` : "—"}</dd></div>
+                                  <div><dt className="font-bold">Move-in / preference</dt><dd className="text-[#718077]">{user.roommate_profile_move_in || "—"} · {user.roommate_profile_preference || "—"}</dd></div>
+                                  <div><dt className="font-bold">Interests</dt><dd className="text-[#718077]">{displayProfileList(user.roommate_profile_interests)}</dd></div>
+                                  <div><dt className="font-bold">Lifestyle</dt><dd className="text-[#718077]">{displayProfileList(user.roommate_profile_lifestyle)}</dd></div>
+                                  <div className="sm:col-span-2"><dt className="font-bold">About</dt><dd className="whitespace-pre-wrap text-[#718077]">{user.roommate_profile_about || "—"}</dd></div>
+                                  <div><dt className="font-bold">Profile created</dt><dd className="text-[#718077]">{user.roommate_profile_created_at ? formatJoinedAt(user.roommate_profile_created_at) : "—"}</dd></div>
+                                </dl>
+                              </div>
+                            ) : <p className="text-[#718077]">This account has no roommate profile. Account management is unaffected.</p>}
+                            <p className="text-xs text-[#87938b] sm:col-span-2">Delete Main Account is not available until account-linked data retention is defined.</p>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
               )}
 
               <p className="mt-5 text-[11px] leading-5 text-[#87938b]">
-                Showing up to 250 newest accounts, reports and
-                reviews. Account authentication remains
-                controlled by Better Auth.
+                Showing {data.users.length} of {data.totalUsers} accounts (up to 250 search results). Joined times use the stored Better Auth timestamp and East Africa Time.
               </p>
             </section>
           </>

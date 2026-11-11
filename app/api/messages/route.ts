@@ -21,10 +21,14 @@ function conversationKey(first: string, second: string) {
 
 async function isConnected(userId: string, otherUserId: string) {
   const relation = await roommateDb.prepare(`
-    SELECT id FROM connection_request
-    WHERE status = 'accepted'
-      AND ((sender_user_id = ? AND receiver_user_id = ?)
-        OR (sender_user_id = ? AND receiver_user_id = ?))
+    SELECT cr.id FROM connection_request cr
+    JOIN roommate_profile sender ON sender.id = cr.sender_profile_id
+    JOIN roommate_profile receiver ON receiver.id = cr.receiver_profile_id
+    WHERE cr.status = 'accepted'
+      AND COALESCE(sender.is_hidden, 0) = 0
+      AND COALESCE(receiver.is_hidden, 0) = 0
+      AND ((cr.sender_user_id = ? AND cr.receiver_user_id = ?)
+        OR (cr.sender_user_id = ? AND cr.receiver_user_id = ?))
     LIMIT 1
   `).get(userId, otherUserId, otherUserId, userId);
   return Boolean(relation);
@@ -61,6 +65,8 @@ export async function GET(request: Request) {
       JOIN roommate_profile sender ON sender.id = cr.sender_profile_id
       JOIN roommate_profile receiver ON receiver.id = cr.receiver_profile_id
       WHERE cr.status = 'accepted'
+        AND COALESCE(sender.is_hidden, 0) = 0
+        AND COALESCE(receiver.is_hidden, 0) = 0
         AND (cr.sender_user_id = ? OR cr.receiver_user_id = ?)
         AND NOT EXISTS (
           SELECT 1 FROM user_block b
@@ -90,6 +96,8 @@ export async function GET(request: Request) {
     if (!await isConnected(userId, otherId)) {
       return Response.json({ error: "Messages are available after a connection is accepted." }, { status: 403 });
     }
+    const activeConversation = conversations.find((person) => person.user_id === otherId);
+    if (!activeConversation) return Response.json({ error: "Messaging is unavailable for this connection." }, { status: 403 });
 
     const key = conversationKey(userId, otherId);
     const messages = await roommateDb.prepare(`
@@ -104,7 +112,7 @@ export async function GET(request: Request) {
     return Response.json({
       conversations,
       messages,
-      active: conversations.find((person) => person.user_id === otherId) ?? null,
+      active: activeConversation,
     });
   } catch (error) {
     console.error("Messages load error:", error);

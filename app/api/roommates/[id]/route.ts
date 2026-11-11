@@ -20,6 +20,7 @@ type RoommateProfileRow = {
   lifestyle: string;
   gender: string;
   profile_image: string | null;
+  is_hidden: number;
 };
 
 function parseJsonArray(value: string): string[] {
@@ -84,6 +85,10 @@ export async function GET(
         },
         { status: 404 },
       );
+    }
+
+    if (Number(profile.is_hidden ?? 0) === 1 && profile.user_id !== session?.user?.id) {
+      return Response.json({ error: "Roommate profile not found." }, { status: 404 });
     }
 
     if (session?.user) {

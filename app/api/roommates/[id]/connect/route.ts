@@ -13,6 +13,13 @@ type ReceiverProfile = {
   user_id: string;
   username: string;
   name: string;
+  is_hidden: number;
+};
+
+type SenderProfile = {
+  id: string;
+  user_id: string;
+  is_hidden: number;
 };
 
 type ExistingRequest = {
@@ -63,6 +70,10 @@ export async function POST(
       );
     }
 
+    if (Number(receiverProfile.is_hidden ?? 0) === 1) {
+      return Response.json({ error: "Roommate profile not found." }, { status: 404 });
+    }
+
     if (receiverProfile.user_id === session.user.id) {
       return Response.json(
         {
@@ -80,7 +91,7 @@ export async function POST(
     `).get(session.user.id, receiverProfile.user_id, receiverProfile.user_id, session.user.id);
     if (block) return Response.json({ error: "This connection is unavailable." }, { status: 403 });
 
-    const senderProfile = await getRoommateProfileByUserId(session.user.id);
+    const senderProfile = await getRoommateProfileByUserId(session.user.id) as SenderProfile | undefined;
 
     if (!senderProfile) {
       return Response.json(
@@ -89,6 +100,9 @@ export async function POST(
         },
         { status: 400 },
       );
+    }
+    if (Number(senderProfile.is_hidden ?? 0) === 1) {
+      return Response.json({ error: "Unhide your roommate profile before sending connection requests." }, { status: 403 });
     }
 
     const existingRequest = await getConnectionRequest(

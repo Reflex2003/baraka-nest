@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       SELECT p.id AS profile_id
       FROM user_block b JOIN roommate_profile p ON p.user_id = b.blocked_user_id
       WHERE b.blocker_user_id = ?
+        AND COALESCE(p.is_hidden, 0) = 0
     `).all(user.id) as { profile_id: string }[];
     return Response.json({ blocked: rows.map((row) => row.profile_id) });
   } catch (error) {
@@ -46,8 +47,9 @@ async function updateBlock(request: Request, block: boolean) {
     const profileId = typeof body.profileId === "string" ? body.profileId.trim() : "";
     if (!profileId || profileId.length > 100) return Response.json({ error: "Choose a valid profile." }, { status: 400 });
     await ensureFeatureTables();
-    const profile = await roommateDb.prepare("SELECT user_id FROM roommate_profile WHERE id = ? LIMIT 1").get(profileId) as { user_id: string } | undefined;
+    const profile = await roommateDb.prepare("SELECT user_id, is_hidden FROM roommate_profile WHERE id = ? LIMIT 1").get(profileId) as { user_id: string; is_hidden: number } | undefined;
     if (!profile) return Response.json({ error: "Profile not found." }, { status: 404 });
+    if (Number(profile.is_hidden ?? 0) === 1) return Response.json({ error: "Profile not found." }, { status: 404 });
     if (profile.user_id === user.id) return Response.json({ error: "You cannot block your own profile." }, { status: 400 });
     if (block) {
       await roommateDb.prepare("INSERT OR IGNORE INTO user_block (blocker_user_id, blocked_user_id) VALUES (?, ?)").run(user.id, profile.user_id);

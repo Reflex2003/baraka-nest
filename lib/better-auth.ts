@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { username } from "better-auth/plugins";
-import { dialect } from "@/lib/db";
+import { CompiledQuery } from "kysely";
+import { db, dialect, ensureUserManagementSchema } from "@/lib/db";
 
 const secret = process.env.BETTER_AUTH_SECRET;
 if (!secret || secret.length < 32) {
@@ -25,6 +27,21 @@ export const auth = betterAuth({
   database: {
     dialect,
     type: "sqlite",
+  },
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          await ensureUserManagementSchema();
+          const result = await db.executeQuery(
+            CompiledQuery.raw('SELECT is_suspended FROM "user" WHERE id = ? LIMIT 1', [session.userId]),
+          );
+          if (Number((result.rows[0] as { is_suspended?: unknown } | undefined)?.is_suspended ?? 0) === 1) {
+            throw new APIError("FORBIDDEN", { message: "This account is suspended. Contact Baraka Nest support." });
+          }
+        },
+      },
+    },
   },
   secret,
   baseURL,

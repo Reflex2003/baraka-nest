@@ -65,6 +65,7 @@ export async function getAllRoommateProfiles() {
       SELECT rp.*, u.image AS profile_image
       FROM roommate_profile rp
       LEFT JOIN "user" u ON u.id = rp.user_id
+      WHERE COALESCE(rp.is_hidden, 0) = 0
       ORDER BY rp.created_at DESC
     `)
     .all();

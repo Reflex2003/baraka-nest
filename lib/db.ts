@@ -1,4 +1,5 @@
 import dns from "node:dns";
+import { randomUUID } from "node:crypto";
 
 import { LibsqlDialect } from "@libsql/kysely-libsql";
 import { CompiledQuery, Kysely, sql } from "kysely";
@@ -54,6 +55,102 @@ export async function query<T extends Record<string, unknown>>(
   );
 
   return result;
+}
+
+let userManagementSchema: Promise<void> | undefined;
+
+async function ensureColumn(table: "user" | "roommate_profile", column: string) {
+  const columns = await db.executeQuery(
+    CompiledQuery.raw(`PRAGMA table_info("${table}")`, []),
+  );
+  if (columns.rows.some((row) => String((row as { name?: unknown }).name) === column)) return;
+
+  try {
+    if (table === "user" && column === "is_suspended") {
+      await db.schema.alterTable("user").addColumn("is_suspended", "integer", (field) =>
+        field.notNull().defaultTo(0),
+      ).execute();
+    } else if (table === "roommate_profile" && column === "is_hidden") {
+      await db.schema.alterTable("roommate_profile").addColumn("is_hidden", "integer", (field) =>
+        field.notNull().defaultTo(0),
+      ).execute();
+    }
+  } catch (error) {
+    // Parallel serverless instances can discover the same missing column.
+    const refreshed = await db.executeQuery(
+      CompiledQuery.raw(`PRAGMA table_info("${table}")`, []),
+    );
+    if (!refreshed.rows.some((row) => String((row as { name?: unknown }).name) === column)) throw error;
+  }
+}
+
+/** Idempotent user-management schema changes and the one-time admin profile hide migration. */
+export function ensureUserManagementSchema() {
+  userManagementSchema ??= (async () => {
+    await ensureColumn("user", "is_suspended");
+    await ensureColumn("roommate_profile", "is_hidden");
+
+    await db.schema.createTable("admin_action_log").ifNotExists()
+      .addColumn("id", "text", (field) => field.primaryKey().notNull())
+      .addColumn("admin_user_id", "text", (field) => field.notNull())
+      .addColumn("action", "text", (field) => field.notNull())
+      .addColumn("target_user_id", "text")
+      .addColumn("target_profile_id", "text")
+      .addColumn("created_at", "text", (field) => field.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+      .execute();
+
+    await db.schema.createTable("app_migration").ifNotExists()
+      .addColumn("name", "text", (field) => field.primaryKey().notNull())
+      .addColumn("applied_at", "text", (field) => field.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+      .execute();
+
+    try {
+      await db.transaction().execute(async (transaction) => {
+        const migration = await transaction.executeQuery(
+          CompiledQuery.raw("SELECT name FROM app_migration WHERE name = ? LIMIT 1", ["hide-admin-roommate-profile-v1"]),
+        );
+        if (migration.rows.length) return;
+
+        const profile = await transaction.executeQuery(
+          CompiledQuery.raw(`
+            SELECT rp.id, rp.user_id, rp.is_hidden
+            FROM roommate_profile rp
+            INNER JOIN "user" u ON u.id = rp.user_id
+            WHERE u.username = ?
+            LIMIT 1
+          `, ["reflex001"]),
+        );
+        const target = profile.rows[0] as { id: string; user_id: string; is_hidden: number } | undefined;
+        if (!target) return;
+
+        if (Number(target.is_hidden) !== 1) {
+          await transaction.executeQuery(
+            CompiledQuery.raw("UPDATE roommate_profile SET is_hidden = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?", [target.id]),
+          );
+          await transaction.executeQuery(
+            CompiledQuery.raw(`
+              INSERT INTO admin_action_log (id, admin_user_id, action, target_user_id, target_profile_id)
+              VALUES (?, ?, ?, ?, ?)
+            `, [randomUUID(), target.user_id, "roommate_profile_hidden_migration", target.user_id, target.id]),
+          );
+        }
+        await transaction.executeQuery(
+          CompiledQuery.raw("INSERT INTO app_migration (name) VALUES (?)", ["hide-admin-roommate-profile-v1"]),
+        );
+      });
+    } catch (error) {
+      // If another instance applied the one-time migration, accept its result.
+      const migration = await db.executeQuery(
+        CompiledQuery.raw("SELECT name FROM app_migration WHERE name = ? LIMIT 1", ["hide-admin-roommate-profile-v1"]),
+      );
+      if (!migration.rows.length) throw error;
+    }
+  })().catch((error: unknown) => {
+    userManagementSchema = undefined;
+    throw error;
+  });
+
+  return userManagementSchema;
 }
 
 let featureSchema: Promise<void> | undefined;
@@ -464,6 +561,8 @@ export function ensureFeatureTables() {
         if (!columnExists) throw error;
       }
     }
+
+    await ensureUserManagementSchema();
 
     if (shouldSeedHouseListings) {
       for (const house of houses) {

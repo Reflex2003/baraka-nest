@@ -1,7 +1,7 @@
 import { del } from "@vercel/blob";
 import { auth } from "@/lib/better-auth";
 import { isSameOriginMutation } from "@/lib/request-security";
-import { isSuperAdminUserId } from "@/lib/admin";
+import { isSuperAdminUserId, recordAdminAction } from "@/lib/admin";
 import { ensureFeatureTables } from "@/lib/db";
 import { roommateDb } from "@/lib/roommate-db";
 import { getHouseListings } from "@/lib/house-records";
@@ -28,6 +28,8 @@ export async function GET(request: Request) {
     }
 
     await ensureFeatureTables();
+    const userSearch = (new URL(request.url).searchParams.get("userSearch") ?? "").trim().slice(0, 100);
+    const userPattern = `%${userSearch}%`;
 
     const [
       users,
@@ -39,23 +41,40 @@ export async function GET(request: Request) {
       reviews,
       houseReports,
       houseContacts,
+      userCount,
     ] = await Promise.all([
       roommateDb
         .prepare(`
           SELECT
             u.id,
             u.name,
+            u.username,
             u.email,
             u.createdAt,
-            rp.id AS roommate_profile_id
+            COALESCE(u.is_suspended, 0) AS is_suspended,
+            CASE WHEN u.username = 'reflex001' THEN 1 ELSE 0 END AS is_protected,
+            rp.id AS roommate_profile_id,
+            COALESCE(rp.is_hidden, 0) AS roommate_profile_is_hidden,
+            rp.name AS roommate_profile_name,
+            rp.age AS roommate_profile_age,
+            rp.school AS roommate_profile_school,
+            rp.gender AS roommate_profile_gender,
+            rp.location AS roommate_profile_location,
+            rp.budget AS roommate_profile_budget,
+            rp.move_in AS roommate_profile_move_in,
+            rp.preference AS roommate_profile_preference,
+            rp.about AS roommate_profile_about,
+            rp.interests AS roommate_profile_interests,
+            rp.lifestyle AS roommate_profile_lifestyle,
+            rp.created_at AS roommate_profile_created_at
           FROM "user" u
           LEFT JOIN roommate_profile rp
             ON rp.user_id = u.id
-          WHERE COALESCE(u.username, '') <> 'reflex001'
+          WHERE (? = '' OR lower(u.name) LIKE lower(?) OR lower(u.email) LIKE lower(?) OR lower(COALESCE(u.username, '')) LIKE lower(?) OR u.id = ?)
           ORDER BY u.createdAt DESC
           LIMIT 250
         `)
-        .all(),
+        .all(userSearch, userPattern, userPattern, userPattern, userSearch),
 
       roommateDb
         .prepare(`
@@ -143,6 +162,7 @@ export async function GET(request: Request) {
         LIMIT 500
       `).all(),
       roommateDb.prepare("SELECT id, contact_phone FROM house_listing WHERE owner_user_id IS NOT NULL").all() as Promise<{ id: string; contact_phone: string }[]>,
+      roommateDb.prepare('SELECT COUNT(*) AS count FROM "user"').get() as Promise<{ count: number }>,
     ]);
 
     const houseControls = new Map(
@@ -158,6 +178,7 @@ export async function GET(request: Request) {
 
     return Response.json({
       users,
+      totalUsers: Number(userCount.count),
       reports,
       reviews,
       openReports: Number(openReports.count),
@@ -598,6 +619,36 @@ export async function PATCH(request: Request) {
       return Response.json({ success: true });
     }
 
+    if (action === "user-suspend" || action === "user-unsuspend") {
+      const targetId = typeof body.id === "string" ? body.id.trim() : "";
+      if (!targetId || targetId.length > 100) return Response.json({ error: "Choose a valid account." }, { status: 400 });
+      const target = await roommateDb.prepare('SELECT id, username FROM "user" WHERE id = ? LIMIT 1').get(targetId) as { id: string; username: string } | undefined;
+      if (!target) return Response.json({ error: "Account not found." }, { status: 404 });
+      if (target.username === "reflex001" || await isSuperAdminUserId(target.id)) {
+        return Response.json({ error: "The protected administrator account cannot be suspended." }, { status: 403 });
+      }
+      const suspended = action === "user-suspend";
+      await roommateDb.prepare('UPDATE "user" SET is_suspended = ? WHERE id = ?').run(suspended ? 1 : 0, targetId);
+      if (suspended) await roommateDb.prepare('DELETE FROM "session" WHERE "userId" = ?').run(targetId);
+      await recordAdminAction(user.id, suspended ? "user_suspended" : "user_unsuspended", targetId);
+      return Response.json({ success: true, status: suspended ? "suspended" : "active" });
+    }
+
+    if (action === "roommate-profile-hide" || action === "roommate-profile-unhide") {
+      const profileId = typeof body.id === "string" ? body.id.trim() : "";
+      if (!profileId || profileId.length > 100) return Response.json({ error: "Choose a valid roommate profile." }, { status: 400 });
+      const target = await roommateDb.prepare(`
+        SELECT rp.id, rp.user_id, rp.is_hidden, u.username
+        FROM roommate_profile rp JOIN "user" u ON u.id = rp.user_id
+        WHERE rp.id = ? LIMIT 1
+      `).get(profileId) as { id: string; user_id: string; is_hidden: number; username: string } | undefined;
+      if (!target) return Response.json({ error: "Roommate profile not found." }, { status: 404 });
+      const hidden = action === "roommate-profile-hide";
+      await roommateDb.prepare("UPDATE roommate_profile SET is_hidden = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(hidden ? 1 : 0, profileId);
+      await recordAdminAction(user.id, hidden ? "roommate_profile_hidden" : "roommate_profile_unhidden", target.user_id, profileId);
+      return Response.json({ success: true, visibility: hidden ? "hidden" : "visible" });
+    }
+
     if (action === "remove-roommate-profile") {
       const id =
         typeof body.id === "string"
@@ -634,6 +685,8 @@ export async function PATCH(request: Request) {
           { status: 404 },
         );
       }
+
+      await recordAdminAction(user.id, "roommate_profile_deleted", target.user_id, id);
 
       return Response.json({ success: true });
     }
