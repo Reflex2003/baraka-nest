@@ -8,6 +8,7 @@ import { getHouseListings } from "@/lib/house-records";
 import { houseTypes } from "@/lib/house-types";
 import { isKenyanCounty } from "@/lib/kenya-counties";
 import { notifySavedSearchesForHouse } from "@/lib/house-alerts";
+import { randomUUID } from "node:crypto";
 
 async function authorized(request: Request) {
   const session = await auth.api.getSession({
@@ -52,9 +53,14 @@ export async function GET(request: Request) {
             u.email,
             u.createdAt,
             COALESCE(u.is_suspended, 0) AS is_suspended,
+            COALESCE(u.is_verified, 0) AS is_verified,
+            COALESCE(u.is_deleted, 0) AS is_deleted,
             CASE WHEN u.username = 'reflex001' THEN 1 ELSE 0 END AS is_protected,
             rp.id AS roommate_profile_id,
             COALESCE(rp.is_hidden, 0) AS roommate_profile_is_hidden,
+            COALESCE(rp.is_verified, 0) AS roommate_profile_is_verified,
+            (SELECT COUNT(*) FROM house_listing h WHERE h.owner_user_id = u.id) AS owned_listing_count,
+            (SELECT COUNT(*) FROM message m WHERE m.sender_user_id = u.id OR m.receiver_user_id = u.id) AS activity_message_count,
             rp.name AS roommate_profile_name,
             rp.age AS roommate_profile_age,
             rp.school AS roommate_profile_school,
@@ -634,6 +640,44 @@ export async function PATCH(request: Request) {
       return Response.json({ success: true, status: suspended ? "suspended" : "active" });
     }
 
+    if (action === "user-verify" || action === "user-unverify") {
+      const targetId = typeof body.id === "string" ? body.id.trim() : "";
+      if (!targetId || targetId.length > 100) return Response.json({ error: "Choose a valid account." }, { status: 400 });
+      const target = await roommateDb.prepare('SELECT id FROM "user" WHERE id = ? AND COALESCE(is_deleted, 0) = 0 LIMIT 1').get(targetId) as { id: string } | undefined;
+      if (!target) return Response.json({ error: "Account not found." }, { status: 404 });
+      const verified = action === "user-verify";
+      await roommateDb.prepare('UPDATE "user" SET is_verified = ? WHERE id = ?').run(verified ? 1 : 0, targetId);
+      await recordAdminAction(user.id, verified ? "user_verified" : "user_unverified", targetId);
+      return Response.json({ success: true, verified });
+    }
+
+    if (action === "user-rename") {
+      const targetId = typeof body.id === "string" ? body.id.trim() : "";
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      if (!targetId || targetId.length > 100 || name.length < 2 || name.length > 100) return Response.json({ error: "Enter a valid display name." }, { status: 400 });
+      const target = await roommateDb.prepare('SELECT id, username FROM "user" WHERE id = ? LIMIT 1').get(targetId) as { id: string; username: string } | undefined;
+      if (!target) return Response.json({ error: "Account not found." }, { status: 404 });
+      if (target.username === "reflex001" || await isSuperAdminUserId(target.id)) return Response.json({ error: "The protected administrator account cannot be edited here." }, { status: 403 });
+      await roommateDb.prepare('UPDATE "user" SET name = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?').run(name, targetId);
+      await recordAdminAction(user.id, "user_name_updated", targetId);
+      return Response.json({ success: true });
+    }
+
+    if (action === "user-delete") {
+      const targetId = typeof body.id === "string" ? body.id.trim() : "";
+      if (!targetId || targetId.length > 100) return Response.json({ error: "Choose a valid account." }, { status: 400 });
+      const target = await roommateDb.prepare('SELECT id, username FROM "user" WHERE id = ? AND COALESCE(is_deleted, 0) = 0 LIMIT 1').get(targetId) as { id: string; username: string } | undefined;
+      if (!target) return Response.json({ error: "Account not found." }, { status: 404 });
+      if (target.username === "reflex001" || await isSuperAdminUserId(target.id)) return Response.json({ error: "The protected administrator account cannot be deleted." }, { status: 403 });
+      const tombstone = `deleted-${targetId.slice(0, 24)}-${randomUUID().slice(0, 8)}`;
+      await roommateDb.prepare('UPDATE "user" SET is_deleted = 1, is_suspended = 1, name = ?, username = ?, email = ?, emailVerified = 0, image = NULL, updatedAt = CURRENT_TIMESTAMP WHERE id = ?').run("Deleted account", tombstone, `${tombstone}@deleted.invalid`, targetId);
+      await roommateDb.prepare('DELETE FROM "session" WHERE "userId" = ?').run(targetId);
+      await roommateDb.prepare('DELETE FROM "account" WHERE "userId" = ?').run(targetId);
+      await roommateDb.prepare("DELETE FROM roommate_profile WHERE user_id = ?").run(targetId);
+      await recordAdminAction(user.id, "user_anonymized_deleted", targetId, "Listings and stable owner ID retained.");
+      return Response.json({ success: true, status: "deleted", listingOwnershipPreserved: true });
+    }
+
     if (action === "roommate-profile-hide" || action === "roommate-profile-unhide") {
       const profileId = typeof body.id === "string" ? body.id.trim() : "";
       if (!profileId || profileId.length > 100) return Response.json({ error: "Choose a valid roommate profile." }, { status: 400 });
@@ -647,6 +691,30 @@ export async function PATCH(request: Request) {
       await roommateDb.prepare("UPDATE roommate_profile SET is_hidden = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(hidden ? 1 : 0, profileId);
       await recordAdminAction(user.id, hidden ? "roommate_profile_hidden" : "roommate_profile_unhidden", target.user_id, profileId);
       return Response.json({ success: true, visibility: hidden ? "hidden" : "visible" });
+    }
+
+    if (action === "roommate-profile-verify" || action === "roommate-profile-unverify") {
+      const profileId = typeof body.id === "string" ? body.id.trim() : "";
+      if (!profileId || profileId.length > 100) return Response.json({ error: "Choose a valid roommate profile." }, { status: 400 });
+      const target = await roommateDb.prepare("SELECT id, user_id FROM roommate_profile WHERE id = ? LIMIT 1").get(profileId) as { id: string; user_id: string } | undefined;
+      if (!target) return Response.json({ error: "Roommate profile not found." }, { status: 404 });
+      const verified = action === "roommate-profile-verify";
+      await roommateDb.prepare("UPDATE roommate_profile SET is_verified = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(verified ? 1 : 0, profileId);
+      await recordAdminAction(user.id, verified ? "roommate_profile_verified" : "roommate_profile_unverified", target.user_id, profileId);
+      return Response.json({ success: true, verified });
+    }
+
+    if (action === "roommate-profile-update") {
+      const profileId = typeof body.id === "string" ? body.id.trim() : "";
+      const name = typeof body.name === "string" ? body.name.trim() : "";
+      const location = typeof body.location === "string" ? body.location.trim() : "";
+      const about = typeof body.about === "string" ? body.about.trim() : "";
+      if (!profileId || profileId.length > 100 || name.length < 2 || name.length > 100 || location.length < 2 || location.length > 120 || about.length > 2000) return Response.json({ error: "Check the roommate profile name, location and about text." }, { status: 400 });
+      const target = await roommateDb.prepare("SELECT user_id FROM roommate_profile WHERE id = ? LIMIT 1").get(profileId) as { user_id: string } | undefined;
+      if (!target) return Response.json({ error: "Roommate profile not found." }, { status: 404 });
+      await roommateDb.prepare("UPDATE roommate_profile SET name = ?, location = ?, about = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(name, location, about, profileId);
+      await recordAdminAction(user.id, "roommate_profile_updated", target.user_id, profileId);
+      return Response.json({ success: true });
     }
 
     if (action === "remove-roommate-profile") {
@@ -738,6 +806,10 @@ export async function PATCH(request: Request) {
       const available = Number(body.available);
       const lat = Number(body.lat);
       const lon = Number(body.lon);
+      const missingLat = body.lat === undefined || body.lat === null || body.lat === "";
+      const missingLon = body.lon === undefined || body.lon === null || body.lon === "";
+      const coordinatesProvided = !missingLat && !missingLon;
+      const coordinatesPartial = missingLat !== missingLon;
 
       const amenities =
         Array.isArray(body.amenities)
@@ -766,9 +838,7 @@ export async function PATCH(request: Request) {
         location.length > 120 ||
         !isKenyanCounty(county) ||
         distance.length > 100 ||
-        !houseTypes.includes(
-          type as (typeof houseTypes)[number],
-        ) ||
+        type.length < 2 || type.length > 60 ||
         rooms.length < 1 ||
         rooms.length > 60 ||
         description.length < 20 ||
@@ -785,12 +855,8 @@ export async function PATCH(request: Request) {
         !Number.isInteger(available) ||
         available < 0 ||
         available > 1000 ||
-        !Number.isFinite(lat) ||
-        lat < -5 ||
-        lat > 6 ||
-        !Number.isFinite(lon) ||
-        lon < 33 ||
-        lon > 42 ||
+        coordinatesPartial ||
+        (coordinatesProvided && (!Number.isFinite(lat) || lat < -5 || lat > 6 || !Number.isFinite(lon) || lon < 33 || lon > 42)) ||
         amenities.some((value) => value.length > 100)
       ) {
         return Response.json(
@@ -818,8 +884,9 @@ export async function PATCH(request: Request) {
             available = ?,
             description = ?,
             amenities = ?,
-            lat = ?,
-            lon = ?,
+            lat = CASE WHEN ? = 1 THEN ? ELSE lat END,
+            lon = CASE WHEN ? = 1 THEN ? ELSE lon END,
+            has_coordinates = CASE WHEN ? = 1 THEN 1 ELSE has_coordinates END,
             updated_at = CURRENT_TIMESTAMP
           WHERE id = ?
         `)
@@ -836,8 +903,11 @@ export async function PATCH(request: Request) {
           available,
           description,
           JSON.stringify(amenities),
+          coordinatesProvided ? 1 : 0,
           lat,
+          coordinatesProvided ? 1 : 0,
           lon,
+          coordinatesProvided ? 1 : 0,
           id,
         );
 

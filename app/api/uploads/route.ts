@@ -56,13 +56,8 @@ export async function POST(request: Request) {
           };
         }
 
-        if (!(await isSuperAdminUserId(session.user.id))) {
-          throw new Error("Only the admin can upload these files.");
-        }
-
-        await ensureFeatureTables();
-
         if (payload.kind === "house-image") {
+          await ensureFeatureTables();
           const houseId = typeof payload.houseId === "string" ? payload.houseId : "";
           const house = houseId
             ? await roommateDb.prepare("SELECT id, owner_user_id FROM house_listing WHERE id = ? LIMIT 1").get(houseId) as { id: string; owner_user_id: string | null } | undefined
@@ -80,6 +75,12 @@ export async function POST(request: Request) {
             tokenPayload: JSON.stringify({ kind: payload.kind, userId: session.user.id, houseId }),
           };
         }
+
+        if (!(await isSuperAdminUserId(session.user.id))) {
+          throw new Error("Only the admin can upload these files.");
+        }
+
+        await ensureFeatureTables();
 
         if (payload.kind === "announcement-asset") {
           const announcementId = typeof payload.announcementId === "string" ? payload.announcementId : "";

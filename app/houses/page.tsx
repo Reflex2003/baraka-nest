@@ -5,10 +5,11 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import Navbar from "../navbar";
 import { useLanguage, type Language } from "../language-context";
-import { getMapEmbedUrl, houses as mapListings } from "@/lib/houses";
+import { getMapEmbedUrl, getMapLocationUrl, houses as mapListings } from "@/lib/houses";
 import { kenyaCounties } from "@/lib/kenya-counties";
 import { canonicalHouseType, houseTypes } from "@/lib/house-types";
 import { freeListingLink } from "@/lib/contact";
+import HouseContactLinks from "@/components/HouseContactLinks";
 
 const translations = {
   English: {
@@ -178,6 +179,7 @@ function formatPrice(price: number) {
 type HouseCover = {
   url: string;
   isCover: boolean;
+  contentType: string;
 };
 
 export default function HousesPage() {
@@ -325,15 +327,16 @@ export default function HousesPage() {
               return null;
             }
 
-            const cover =
+              const cover =
               data.images.find(
                 (image: {
                   url?: unknown;
                   isCover?: unknown;
+                  contentType?: unknown;
                 }) => image?.isCover === true && typeof image?.url === "string",
               ) ??
               data.images.find(
-                (image: { url?: unknown }) =>
+                (image: { url?: unknown; contentType?: unknown }) =>
                   typeof image?.url === "string",
               );
 
@@ -346,6 +349,7 @@ export default function HousesPage() {
               {
                 url: cover.url,
                 isCover: Boolean(cover.isCover),
+                contentType: typeof cover.contentType === "string" ? cover.contentType : "image/jpeg",
               },
             ] as const;
           } catch {
@@ -691,13 +695,7 @@ export default function HousesPage() {
 
             return (
               <div className="mt-7 grid overflow-hidden rounded-[26px] border border-[#e3e9e1] bg-white shadow-sm lg:grid-cols-[1.25fr_.75fr]">
-                <iframe
-                  title={`${selected.name} map`}
-                  src={getMapEmbedUrl(mapListing)}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  className="h-[300px] w-full border-0 sm:h-[380px]"
-                />
+                {getMapEmbedUrl(mapListing) ? <iframe title={`${selected.name} map`} src={getMapEmbedUrl(mapListing) ?? undefined} loading="lazy" referrerPolicy="no-referrer" className="h-[300px] w-full border-0 sm:h-[380px]" /> : <div className="flex h-[300px] items-center justify-center bg-[#f1f4ef] p-6 text-center text-sm text-[#718077] sm:h-[380px]">Map coordinates are not available for this listing.</div>}
 
                 <div className="flex flex-col p-5 sm:p-6">
                   <p className="text-xs font-bold uppercase tracking-[0.13em] text-[#87938a]">
@@ -711,6 +709,7 @@ export default function HousesPage() {
                   <p className="mt-1 text-sm text-[#748078]">
                     {selected.location}
                   </p>
+                  {getMapLocationUrl(selected) && <a href={getMapLocationUrl(selected) ?? undefined} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-10 w-fit items-center rounded-full bg-[#183b2c] px-4 text-xs font-bold text-white">View Location ↗</a>}
 
                   <p className="mt-4 text-xl font-extrabold text-[#26352b]">
                     {formatPrice(selected.price)}{" "}
@@ -798,7 +797,7 @@ export default function HousesPage() {
                             : "bg-[#deded9]"
                       }`}
                     >
-                      {cover?.url ? (
+                      {cover?.url && !cover.contentType.startsWith("video/") ? (
                         <>
                           <Image
                             src={cover.url}
@@ -811,6 +810,8 @@ export default function HousesPage() {
 
                           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10" />
                         </>
+                      ) : cover?.contentType.startsWith("video/") ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#263c30] to-[#879889]"><span className="rounded-full bg-black/50 px-4 py-2 text-sm font-semibold text-white">▶ Video</span></div>
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.12] via-transparent to-black/[0.12]" />
                       )}
@@ -931,6 +932,8 @@ export default function HousesPage() {
                       )}
                     </div>
                   </Link>
+
+                  <HouseContactLinks methods={house.contactMethods} />
 
                   <button
                     type="button"

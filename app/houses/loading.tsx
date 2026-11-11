@@ -1,0 +1,3 @@
+export default function Loading() {
+  return <main aria-label="Loading listings" className="min-h-screen animate-pulse bg-[#fafafa] px-5 py-12"><div className="mx-auto max-w-7xl space-y-8"><div className="h-64 rounded-[28px] bg-white"/><div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{Array.from({length:6},(_,i)=><div key={i} className="overflow-hidden rounded-[28px] bg-white"><div className="h-60 bg-[#e9ece7]"/><div className="space-y-3 p-6"><div className="h-5 w-2/3 rounded bg-[#e9ece7]"/><div className="h-4 w-1/2 rounded bg-[#e9ece7]"/><div className="h-12 rounded bg-[#e9ece7]"/></div></div>)}</div></div></main>;
+}

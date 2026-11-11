@@ -26,6 +26,22 @@ body {
 button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
 ::selection { background: #d8e7d8; color: #183b2c; }
 
+html { color-scheme: light; }
+.page-enter { animation: page-enter 150ms ease-out both; }
+@keyframes page-enter { from { opacity: .86; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .page-enter { animation: none; } }
+html[data-theme="dark"] { color-scheme: dark; --background: #111713; --foreground: #e8eee9; --nest-surface: #1b241e; --nest-border: #344239; }
+html[data-theme="dark"] body { color: #e8eee9; }
+html[data-theme="dark"] [class~="bg-white"], html[data-theme="dark"] [class*="bg-white/"] { background-color: #1b241e !important; }
+html[data-theme="dark"] [class*="bg-[#faf"], html[data-theme="dark"] [class*="bg-[#f1"], html[data-theme="dark"] [class*="bg-[#f3"], html[data-theme="dark"] [class*="bg-[#f7"], html[data-theme="dark"] [class*="bg-[#eaf"], html[data-theme="dark"] [class*="bg-[#edf"] { background-color: #202b24 !important; }
+html[data-theme="dark"] [class*="border-[#e"], html[data-theme="dark"] [class*="border-black/"] { border-color: #38463c !important; }
+html[data-theme="dark"] [class*="text-black/"] { color: rgb(224 232 225 / 70%) !important; }
+html[data-theme="dark"] input:not([type="checkbox"]), html[data-theme="dark"] textarea, html[data-theme="dark"] select { color: #e8eee9; background-color: #1b241e; border-color: #46564a; }
+html[data-theme="dark"] option { color: #e8eee9; background: #1b241e; }
+html[data-theme="dark"] :where(article, section, aside, header, nav)[class*="bg-white"] { color: #e8eee9; }
+html[data-theme] body, html[data-theme] main, html[data-theme] header, html[data-theme] nav, html[data-theme] article, html[data-theme] section { transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
+@media (prefers-reduced-motion: reduce) { html[data-theme] body, html[data-theme] main, html[data-theme] header, html[data-theme] nav, html[data-theme] article, html[data-theme] section { transition-duration: 0.01ms; } }
+
 @layer base {
   /* ---- Baraka Nest global interaction feedback ----------------------------
      One shared press/hover layer for every clickable control. It uses only

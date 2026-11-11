@@ -15,10 +15,13 @@ export type HouseListing = {
   accent: "dark" | "light" | "soft";
   description: string;
   amenities: string[];
-  coordinates: { lat: number; lon: number };
+  coordinates: { lat: number; lon: number } | null;
+  locationUrl?: string | null;
+  furnishing?: string | null;
   ownerUserId?: string | null;
   verificationStatus?: "pending" | "verified" | "unverified" | "under_review" | "suspended";
   contactPhone?: string;
+  contactMethods?: HouseContactMethod[];
   ownerName?: string | null;
   ownerMemberSince?: string | null;
   ownerListingCount?: number;
@@ -31,6 +34,15 @@ export type HouseMedia = {
   contentType: string;
   isCover: boolean;
   sortOrder: number;
+};
+
+export type HouseContactMethod = {
+  id?: string;
+  kind: "phone" | "whatsapp" | "social";
+  platform: "phone" | "whatsapp" | "instagram" | "facebook" | "telegram" | "tiktok" | "x" | "link";
+  label: string;
+  value: string;
+  url: string;
 };
 
 export const houses: HouseListing[] = [
@@ -139,8 +151,16 @@ export const houses: HouseListing[] = [
 ];
 
 export function getMapEmbedUrl(house: HouseListing) {
+  if (!house.coordinates) return null;
   const { lat, lon } = house.coordinates;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lon - 0.015}%2C${lat - 0.012}%2C${lon + 0.015}%2C${lat + 0.012}&layer=mapnik&marker=${lat}%2C${lon}`;
+}
+
+export function getMapLocationUrl(house: HouseListing) {
+  if (house.locationUrl) return house.locationUrl;
+  if (!house.coordinates) return null;
+  const { lat, lon } = house.coordinates;
+  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`;
 }
 
 export function getMapSearchUrl(location: string, place: string) {

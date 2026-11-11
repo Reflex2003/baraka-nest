@@ -34,9 +34,13 @@ export const auth = betterAuth({
         before: async (session) => {
           await ensureUserManagementSchema();
           const result = await db.executeQuery(
-            CompiledQuery.raw('SELECT is_suspended FROM "user" WHERE id = ? LIMIT 1', [session.userId]),
+            CompiledQuery.raw('SELECT is_suspended, is_deleted FROM "user" WHERE id = ? LIMIT 1', [session.userId]),
           );
-          if (Number((result.rows[0] as { is_suspended?: unknown } | undefined)?.is_suspended ?? 0) === 1) {
+          const account = result.rows[0] as { is_suspended?: unknown; is_deleted?: unknown } | undefined;
+          if (Number(account?.is_deleted ?? 0) === 1) {
+            throw new APIError("FORBIDDEN", { message: "This account has been deleted." });
+          }
+          if (Number(account?.is_suspended ?? 0) === 1) {
             throw new APIError("FORBIDDEN", { message: "This account is suspended. Contact Baraka Nest support." });
           }
         },

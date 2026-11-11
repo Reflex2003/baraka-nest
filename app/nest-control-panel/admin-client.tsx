@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { kenyaCounties } from "@/lib/kenya-counties";
-import { canonicalHouseType, houseTypes } from "@/lib/house-types";
+import { canonicalHouseType } from "@/lib/house-types";
 import { uploadUserFile } from "@/lib/client-upload";
 import { displayProfileList, formatJoinedAt } from "@/lib/user-management.mjs";
 import AnnouncementManager from "./announcement-manager";
@@ -17,9 +17,12 @@ type User = {
   email: string;
   createdAt: string;
   is_suspended: number;
+  is_verified: number;
+  is_deleted: number;
   is_protected: number;
   roommate_profile_id: string | null;
   roommate_profile_is_hidden: number;
+  roommate_profile_is_verified: number;
   roommate_profile_name: string | null;
   roommate_profile_age: number | null;
   roommate_profile_school: string | null;
@@ -32,6 +35,8 @@ type User = {
   roommate_profile_interests: string | null;
   roommate_profile_lifestyle: string | null;
   roommate_profile_created_at: string | null;
+  owned_listing_count: number;
+  activity_message_count: number;
 };
 
 type Report = {
@@ -72,9 +77,9 @@ type House = {
   amenities: string[];
   distance: string;
   coordinates: {
-    lat: number;
-    lon: number;
-  };
+    lat: number | "";
+    lon: number | "";
+  } | null;
   hidden: boolean;
   featured: boolean;
   ownerUserId: string | null;
@@ -522,8 +527,8 @@ export default function AdminClient() {
         description: houseForm.description,
         amenities: houseForm.amenities,
         distance: houseForm.distance,
-        lat: Number(houseForm.coordinates.lat),
-        lon: Number(houseForm.coordinates.lon),
+        lat: houseForm.coordinates?.lat === "" || !houseForm.coordinates ? null : Number(houseForm.coordinates.lat),
+        lon: houseForm.coordinates?.lon === "" || !houseForm.coordinates ? null : Number(houseForm.coordinates.lon),
       },
       editing ? houseForm.id! : "new-house",
       editing ? "PATCH" : "POST",
@@ -1146,22 +1151,7 @@ export default function AdminClient() {
 
                 <label className="text-xs font-bold text-[#526258]">
                   Home type
-
-                  <select
-                    required
-                    value={houseForm.type}
-                    onChange={(event) =>
-                      setHouseForm((current) => ({
-                        ...current,
-                        type: event.target.value,
-                      }))
-                    }
-                    className="mt-1 min-h-11 w-full rounded-xl border border-[#dfe6dd] bg-white px-3 text-sm font-normal"
-                  >
-                    {houseTypes.map((item) => (
-                      <option key={item}>{item}</option>
-                    ))}
-                  </select>
+                  <input required maxLength={60} value={houseForm.type} onChange={(event) => setHouseForm((current) => ({ ...current, type: event.target.value }))} className="mt-1 min-h-11 w-full rounded-xl border border-[#dfe6dd] bg-white px-3 text-sm font-normal" />
                 </label>
 
                 <label className="text-xs font-bold text-[#526258]">
@@ -1226,13 +1216,13 @@ export default function AdminClient() {
                       min={-5}
                       max={6}
                       step="any"
-                      value={houseForm.coordinates.lat}
+                      value={houseForm.coordinates?.lat ?? ""}
                       onChange={(event) =>
                         setHouseForm((current) => ({
                           ...current,
                           coordinates: {
-                            ...current.coordinates,
-                            lat: Number(event.target.value),
+                            ...(current.coordinates ?? { lat: "", lon: "" }),
+                            lat: event.target.value === "" ? "" : Number(event.target.value),
                           },
                         }))
                       }
@@ -1249,13 +1239,13 @@ export default function AdminClient() {
                       min={33}
                       max={42}
                       step="any"
-                      value={houseForm.coordinates.lon}
+                      value={houseForm.coordinates?.lon ?? ""}
                       onChange={(event) =>
                         setHouseForm((current) => ({
                           ...current,
                           coordinates: {
-                            ...current.coordinates,
-                            lon: Number(event.target.value),
+                            ...(current.coordinates ?? { lat: "", lon: "" }),
+                            lon: event.target.value === "" ? "" : Number(event.target.value),
                           },
                         }))
                       }
@@ -1962,9 +1952,12 @@ export default function AdminClient() {
                 <div className="space-y-3">
                   {data.users.map((user) => {
                     const suspended = Number(user.is_suspended) === 1;
+                    const verified = Number(user.is_verified) === 1;
+                    const deleted = Number(user.is_deleted) === 1;
                     const protectedAccount = Number(user.is_protected) === 1;
                     const hasRoommate = Boolean(user.roommate_profile_id);
                     const profileHidden = Number(user.roommate_profile_is_hidden) === 1;
+                    const profileVerified = Number(user.roommate_profile_is_verified) === 1;
                     const expanded = expandedUserId === user.id;
                     return (
                       <article key={user.id} className="rounded-2xl border border-[#edf0eb] p-4">
@@ -1973,8 +1966,9 @@ export default function AdminClient() {
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="font-bold">{user.name || "Student"}</p>
                               <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${suspended ? "bg-red-50 text-red-700" : "bg-[#eaf2e8] text-[#285640]"}`}>
-                                {suspended ? "Suspended" : "Active"}
+                                {deleted ? "Deleted · anonymized" : suspended ? "Suspended" : "Active"}
                               </span>
+                              {verified && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">Verified</span>}
                               {protectedAccount && <span className="rounded-full bg-[#fff4e8] px-2.5 py-1 text-[11px] font-bold text-[#9a5a20]">Protected admin</span>}
                             </div>
                             <p className="mt-1 text-xs text-[#718077]">@{user.username || "—"} · {user.email}</p>
@@ -1987,7 +1981,7 @@ export default function AdminClient() {
                             <button disabled={Boolean(busy)} className={button} onClick={() => setExpandedUserId(expanded ? null : user.id)}>
                               {expanded ? "Hide details" : "View details"}
                             </button>
-                            {!protectedAccount && (suspended ? (
+                            {!protectedAccount && !deleted && (suspended ? (
                               <button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: "user-unsuspend", id: user.id }, user.id)}>Unsuspend account</button>
                             ) : (
                               <button disabled={Boolean(busy)} className={button} onClick={() => {
@@ -1996,11 +1990,15 @@ export default function AdminClient() {
                                 }
                               }}>Suspend account</button>
                             ))}
+                            {!protectedAccount && !deleted && <button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: verified ? "user-unverify" : "user-verify", id: user.id }, user.id)}>{verified ? "Remove verification" : "Verify account"}</button>}
+                            {!protectedAccount && !deleted && <button disabled={Boolean(busy)} className={button} onClick={() => { const name = window.prompt("Update the account display name:", user.name); if (name?.trim()) void update({ action: "user-rename", id: user.id, name: name.trim() }, user.id); }}>Edit name</button>}
+                            {!protectedAccount && !deleted && <button disabled={Boolean(busy)} className={`${button} text-red-700`} onClick={() => { if (window.confirm(`Anonymize and delete ${user.username || user.name}'s account? Their owned listings and stable owner reference will remain. Login credentials, sessions and roommate profile will be removed.`)) void update({ action: "user-delete", id: user.id }, user.id); }}>Delete main account</button>}
                             {hasRoommate && (
                               <button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: profileHidden ? "roommate-profile-unhide" : "roommate-profile-hide", id: user.roommate_profile_id }, user.id)}>
                                 {profileHidden ? "Unhide roommate profile" : "Hide roommate profile"}
                               </button>
                             )}
+                            {hasRoommate && !deleted && <button disabled={Boolean(busy)} className={button} onClick={() => void update({ action: profileVerified ? "roommate-profile-unverify" : "roommate-profile-verify", id: user.roommate_profile_id }, user.id)}>{profileVerified ? "Unverify roommate profile" : "Verify roommate profile"}</button>}
                             {hasRoommate && !protectedAccount && (
                               <button disabled={Boolean(busy)} className={`${button} text-red-700`} onClick={() => {
                                 if (window.confirm(`Permanently delete only ${user.username || user.name}'s roommate profile? The main account will remain.`)) {
@@ -2015,9 +2013,11 @@ export default function AdminClient() {
                           <div className="mt-4 grid gap-3 border-t border-[#edf0eb] pt-4 text-sm sm:grid-cols-2">
                             <p><span className="font-bold">Account ID:</span> <span className="break-all text-[#718077]">{user.id}</span></p>
                             <p><span className="font-bold">Account status:</span> {suspended ? "Suspended" : "Active"}</p>
+                            <p><span className="font-bold">Owned listings:</span> {Number(user.owned_listing_count ?? 0)}</p>
+                            <p><span className="font-bold">Messages recorded:</span> {Number(user.activity_message_count ?? 0)}</p>
                             {hasRoommate ? (
                               <div className="sm:col-span-2">
-                                <h3 className="font-extrabold">Roommate profile · {profileHidden ? "Hidden" : "Visible"}</h3>
+                                <h3 className="font-extrabold">Roommate profile · {profileHidden ? "Hidden" : "Visible"} · {profileVerified ? "Verified" : "Unverified"}</h3>
                                 <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2">
                                   <div><dt className="font-bold">Name / age</dt><dd className="text-[#718077]">{user.roommate_profile_name || "—"}{user.roommate_profile_age ? ` · ${user.roommate_profile_age}` : ""}</dd></div>
                                   <div><dt className="font-bold">School / gender</dt><dd className="text-[#718077]">{user.roommate_profile_school || "—"} · {user.roommate_profile_gender || "—"}</dd></div>
@@ -2027,10 +2027,10 @@ export default function AdminClient() {
                                   <div><dt className="font-bold">Lifestyle</dt><dd className="text-[#718077]">{displayProfileList(user.roommate_profile_lifestyle)}</dd></div>
                                   <div className="sm:col-span-2"><dt className="font-bold">About</dt><dd className="whitespace-pre-wrap text-[#718077]">{user.roommate_profile_about || "—"}</dd></div>
                                   <div><dt className="font-bold">Profile created</dt><dd className="text-[#718077]">{user.roommate_profile_created_at ? formatJoinedAt(user.roommate_profile_created_at) : "—"}</dd></div>
+                                  {!protectedAccount && !deleted && <div className="sm:col-span-2"><button type="button" disabled={Boolean(busy)} className={button} onClick={() => { const name = window.prompt("Roommate profile display name:", user.roommate_profile_name || ""); if (!name?.trim()) return; const location = window.prompt("Roommate profile location:", user.roommate_profile_location || ""); if (!location?.trim()) return; const about = window.prompt("Roommate profile about text:", user.roommate_profile_about || ""); if (about === null) return; void update({ action: "roommate-profile-update", id: user.roommate_profile_id, name: name.trim(), location: location.trim(), about: about.trim() }, user.id); }}>Edit roommate profile</button></div>}
                                 </dl>
                               </div>
                             ) : <p className="text-[#718077]">This account has no roommate profile. Account management is unaffected.</p>}
-                            <p className="text-xs text-[#87938b] sm:col-span-2">Delete Main Account is not available until account-linked data retention is defined.</p>
                           </div>
                         )}
                       </article>

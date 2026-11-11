@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "../../navbar";
 import { useLanguage, type Language } from "../../language-context";
-import { getMapEmbedUrl, getMapSearchUrl } from "@/lib/houses";
+import { getMapEmbedUrl, getMapLocationUrl, getMapSearchUrl } from "@/lib/houses";
+import HouseContactLinks from "@/components/HouseContactLinks";
 import type { House } from "./page";
 import HouseMediaGallery from "@/components/HouseMediaGallery";
 
@@ -720,19 +721,20 @@ export default function HouseDetailClient({
                 {t.location}
               </p>
 
-              <iframe
+              {getMapEmbedUrl(house) ? <iframe
                 title={`${house.location} map`}
-                src={getMapEmbedUrl(house)}
+                src={getMapEmbedUrl(house) ?? undefined}
                 loading="lazy"
                 referrerPolicy="no-referrer"
                 className="mt-6 h-[280px] w-full rounded-3xl border-0 bg-[#f1f4ef] sm:h-[340px]"
-              />
+              /> : <div className="mt-6 flex h-[280px] items-center justify-center rounded-3xl bg-[#f1f4ef] p-6 text-center text-sm text-[#718077] sm:h-[340px]">Map preview is unavailable without coordinates.</div>}
 
               <p className="mt-4 text-xs leading-5 text-[#718077]">
                 {t.mapNote} {house.distance}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
+                {getMapLocationUrl(house) && <a href={getMapLocationUrl(house) ?? undefined} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center rounded-full bg-[#183b2c] px-4 text-xs font-bold text-white transition hover:bg-[#285640]">View Location</a>}
                 <a
                   href={getMapSearchUrl(
                     house.location,
@@ -770,6 +772,7 @@ export default function HouseDetailClient({
                 </a>
               </div>
             </section>
+            <section className="rounded-[28px] border border-black/[0.08] bg-white p-7 sm:p-9"><h2 className="text-lg font-semibold">Contact</h2><p className="mt-1 text-sm text-black/45">Reach out using the methods shared by the listing owner.</p><div className="mt-3"><HouseContactLinks methods={house.contactMethods} /></div></section>
           </div>
 
           <aside className="lg:sticky lg:top-28 lg:h-fit">
@@ -839,6 +842,8 @@ export default function HouseDetailClient({
                     {house.location}
                   </span>
                 </div>
+
+                {house.furnishing && <div className="flex items-center justify-between"><span className="text-sm text-black/40">Furnishing</span><span className="text-right text-sm font-semibold">{house.furnishing}</span></div>}
 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-black/40">

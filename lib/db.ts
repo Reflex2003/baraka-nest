@@ -66,12 +66,16 @@ async function ensureColumn(table: "user" | "roommate_profile", column: string) 
   if (columns.rows.some((row) => String((row as { name?: unknown }).name) === column)) return;
 
   try {
-    if (table === "user" && column === "is_suspended") {
-      await db.schema.alterTable("user").addColumn("is_suspended", "integer", (field) =>
+    if (table === "user" && ["is_suspended", "is_verified", "is_deleted"].includes(column)) {
+      await db.schema.alterTable("user").addColumn(column, "integer", (field) =>
         field.notNull().defaultTo(0),
       ).execute();
     } else if (table === "roommate_profile" && column === "is_hidden") {
       await db.schema.alterTable("roommate_profile").addColumn("is_hidden", "integer", (field) =>
+        field.notNull().defaultTo(0),
+      ).execute();
+    } else if (table === "roommate_profile" && column === "is_verified") {
+      await db.schema.alterTable("roommate_profile").addColumn("is_verified", "integer", (field) =>
         field.notNull().defaultTo(0),
       ).execute();
     }
@@ -88,7 +92,10 @@ async function ensureColumn(table: "user" | "roommate_profile", column: string) 
 export function ensureUserManagementSchema() {
   userManagementSchema ??= (async () => {
     await ensureColumn("user", "is_suspended");
+    await ensureColumn("user", "is_verified");
+    await ensureColumn("user", "is_deleted");
     await ensureColumn("roommate_profile", "is_hidden");
+    await ensureColumn("roommate_profile", "is_verified");
 
     await db.schema.createTable("admin_action_log").ifNotExists()
       .addColumn("id", "text", (field) => field.primaryKey().notNull())
@@ -337,6 +344,9 @@ export function ensureFeatureTables() {
       ["owner_user_id", "text", null],
       ["verification_status", "text", "unverified"],
       ["contact_phone", "text", ""],
+      ["location_url", "text", null],
+      ["has_coordinates", "integer", "1"],
+      ["furnishing", "text", null],
     ] as const) {
       if (!existingHouseColumns.has(name)) {
         try {
@@ -351,6 +361,20 @@ export function ensureFeatureTables() {
         }
       }
     }
+
+    await db.schema.createTable("house_contact_method").ifNotExists()
+      .addColumn("id", "text", (column) => column.primaryKey().notNull())
+      .addColumn("house_id", "text", (column) => column.notNull())
+      .addColumn("kind", "text", (column) => column.notNull())
+      .addColumn("platform", "text", (column) => column.notNull())
+      .addColumn("label", "text", (column) => column.notNull())
+      .addColumn("value", "text", (column) => column.notNull())
+      .addColumn("url", "text", (column) => column.notNull())
+      .addColumn("sort_order", "integer", (column) => column.notNull().defaultTo(0))
+      .addColumn("created_at", "text", (column) => column.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+      .execute();
+    await db.schema.createIndex("house_contact_method_house_idx").ifNotExists()
+      .on("house_contact_method").columns(["house_id", "sort_order"]).execute();
 
     const houseImageColumns = await db.executeQuery(
       CompiledQuery.raw("PRAGMA table_info(house_image)", []),
@@ -603,8 +627,8 @@ export function ensureFeatureTables() {
               house.accent,
               house.description,
               JSON.stringify(house.amenities),
-              house.coordinates.lat,
-              house.coordinates.lon,
+              house.coordinates?.lat ?? 0,
+              house.coordinates?.lon ?? 0,
             ],
           ),
         );

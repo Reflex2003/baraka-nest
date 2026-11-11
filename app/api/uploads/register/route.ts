@@ -5,6 +5,7 @@ import { isSuperAdminUserId } from "@/lib/admin";
 import { ensureFeatureTables } from "@/lib/db";
 import { isSameOriginMutation } from "@/lib/request-security";
 import { roommateDb } from "@/lib/roommate-db";
+import { validateMediaFileMetadata } from "@/lib/listing-input.mjs";
 
 type UploadRecord = {
   kind?: unknown;
@@ -70,10 +71,11 @@ export async function POST(request: Request) {
 
     if (kind === "house-image") {
       const houseId = typeof body.houseId === "string" ? body.houseId : "";
-      if (!houseId || !pathname.startsWith(`houses/${houseId}/`) || !(contentType.startsWith("image/") || ["video/mp4", "video/webm"].includes(contentType))) {
+      const fileName = decodeURIComponent(pathname.split("/").pop() ?? "");
+      const media = validateMediaFileMetadata(fileName, contentType, size);
+      if (!houseId || !pathname.startsWith(`houses/${houseId}/`) || !media.valid) {
         return Response.json({ error: "The housing photo details are invalid." }, { status: 400 });
       }
-      if (size > 100 * 1024 * 1024) return Response.json({ error: "Media files must be 100MB or smaller." }, { status: 400 });
       const existing = await roommateDb.prepare("SELECT id, owner_user_id FROM house_listing WHERE id = ? LIMIT 1").get(houseId) as { id: string; owner_user_id: string | null } | undefined;
       if (!existing) return Response.json({ error: "Housing listing not found." }, { status: 404 });
       if (existing.owner_user_id !== session.user.id && !(await isSuperAdminUserId(session.user.id))) return Response.json({ error: "You can only add media to your own listing." }, { status: 403 });
@@ -88,7 +90,7 @@ export async function POST(request: Request) {
       await roommateDb.prepare(`
         INSERT INTO house_image (id, house_id, url, blob_path, content_type, size, sort_order, is_cover)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(imageId, houseId, url, blobPath, contentType, size, next.sort_order, Number(existingCount.count) === 0 ? 1 : 0);
+      `).run(imageId, houseId, url, blobPath, media.contentType, size, next.sort_order, Number(existingCount.count) === 0 ? 1 : 0);
       return Response.json({ success: true, imageId });
     }
 

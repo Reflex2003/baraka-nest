@@ -81,7 +81,20 @@ export default function Navbar() {
   const [canAdmin, setCanAdmin] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   const t = translations[language];
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light"));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("baraka-nest-theme", next);
+    setTheme(next);
+  }
 
   useEffect(() => {
     let activeRequest = true;
@@ -137,6 +150,7 @@ export default function Navbar() {
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2">
+            <button type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} aria-pressed={theme === "dark"} className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e3e7df] bg-white text-sm text-[#526258] transition hover:bg-[#f5f7f3] sm:h-10 sm:w-10">{theme === "dark" ? "☀" : "☾"}</button>
             <Link
               href="/contact"
               className="hidden xl:inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-[#e58b45] px-4 py-2.5 text-sm font-bold text-white shadow-[0_6px_18px_rgba(229,139,69,0.2)] transition hover:bg-[#cc7130]"
