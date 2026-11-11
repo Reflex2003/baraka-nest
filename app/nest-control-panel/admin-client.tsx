@@ -6,7 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { kenyaCounties } from "@/lib/kenya-counties";
 import { canonicalHouseType } from "@/lib/house-types";
 import { uploadUserFile } from "@/lib/client-upload";
+import { normalizeContactMethods, validateMediaFileMetadata } from "@/lib/listing-input.mjs";
 import { displayProfileList, formatJoinedAt } from "@/lib/user-management.mjs";
+import type { HouseContactMethod } from "@/lib/houses";
 import AnnouncementManager from "./announcement-manager";
 import ProfileImageViewer from "@/components/ProfileImageViewer";
 
@@ -80,6 +82,9 @@ type House = {
     lat: number | "";
     lon: number | "";
   } | null;
+  locationUrl?: string | null;
+  furnishing?: string | null;
+  contactMethods?: HouseContactMethod[];
   hidden: boolean;
   featured: boolean;
   ownerUserId: string | null;
@@ -127,28 +132,51 @@ type HouseImage = {
 
 type HouseForm = Omit<
   House,
-  "id" | "hidden" | "featured" | "ownerUserId" | "verificationStatus" | "contactPhone" | "ownerName" | "ownerMemberSince" | "ownerListingCount"
+  | "id" | "hidden" | "featured" | "ownerUserId" | "verificationStatus" | "contactPhone" | "ownerName" | "ownerMemberSince" | "ownerListingCount"
+  | "price" | "deposit" | "monthlyBills" | "available" | "coordinates" | "contactMethods" | "locationUrl" | "furnishing"
 > & {
   id?: string;
+  price: string;
+  deposit: string;
+  monthlyBills: string;
+  available: string;
+  coordinates: { lat: string; lon: string };
+  locationUrl: string;
+  furnishing: string;
+  contactPhone: string;
+  whatsapp: string;
+  whatsappUrl: string;
+  socials: string[];
+};
+
+type PendingHouseMedia = {
+  file: File;
+  previewUrl: string;
+  progress: number | null;
+  state: "ready" | "uploading" | "done" | "failed";
+  error?: string;
 };
 
 const emptyHouseForm: HouseForm = {
   name: "",
   location: "",
   county: "",
-  price: 8000,
-  deposit: 0,
-  monthlyBills: 0,
+  price: "8000",
+  deposit: "0",
+  monthlyBills: "0",
   type: "Bedsitter/Studio",
   rooms: "1 room",
-  available: 1,
+  available: "1",
   description: "",
   amenities: [],
   distance: "",
-  coordinates: {
-    lat: -1.2864,
-    lon: 36.8172,
-  },
+  coordinates: { lat: "", lon: "" },
+  locationUrl: "",
+  furnishing: "",
+  contactPhone: "",
+  whatsapp: "",
+  whatsappUrl: "",
+  socials: [],
 };
 
 const panel =
@@ -179,11 +207,18 @@ export default function AdminClient() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState("");
   const [photoNotice, setPhotoNotice] = useState("");
-  const [pendingHousePhotos, setPendingHousePhotos] = useState<File[]>([]);
+  const [pendingHouseMedia, setPendingHouseMedia] = useState<PendingHouseMedia[]>([]);
+  const [houseContactsDirty, setHouseContactsDirty] = useState(false);
 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingPreviewUrls = useRef(new Set<string>());
   const adminProfileImage = adminProfile?.image || "/admin-profile.jpg";
+
+  useEffect(() => () => {
+    for (const url of pendingPreviewUrls.current) URL.revokeObjectURL(url);
+    pendingPreviewUrls.current.clear();
+  }, []);
 
   const refresh = useCallback(async () => {
     setError("");

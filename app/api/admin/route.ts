@@ -5,7 +5,7 @@ import { isSuperAdminUserId, recordAdminAction } from "@/lib/admin";
 import { ensureFeatureTables } from "@/lib/db";
 import { roommateDb } from "@/lib/roommate-db";
 import { getHouseListings } from "@/lib/house-records";
-import { houseTypes } from "@/lib/house-types";
+import { coordinatesFromMapUrl, mapUrlFromCoordinates, normalizeAmenities, normalizeContactMethods, normalizeHouseType, normalizeMapLocationUrl, parseOptionalInteger } from "@/lib/listing-input.mjs";
 import { isKenyanCounty } from "@/lib/kenya-counties";
 import { notifySavedSearchesForHouse } from "@/lib/house-alerts";
 import { randomUUID } from "node:crypto";
@@ -41,7 +41,6 @@ export async function GET(request: Request) {
       listings,
       reviews,
       houseReports,
-      houseContacts,
       userCount,
     ] = await Promise.all([
       roommateDb
@@ -167,7 +166,6 @@ export async function GET(request: Request) {
         ORDER BY CASE r.status WHEN 'open' THEN 0 ELSE 1 END, r.created_at DESC
         LIMIT 500
       `).all(),
-      roommateDb.prepare("SELECT id, contact_phone FROM house_listing WHERE owner_user_id IS NOT NULL").all() as Promise<{ id: string; contact_phone: string }[]>,
       roommateDb.prepare('SELECT COUNT(*) AS count FROM "user"').get() as Promise<{ count: number }>,
     ]);
 
@@ -180,8 +178,6 @@ export async function GET(request: Request) {
         }[]
       ).map((item) => [item.house_id, item]),
     );
-    const houseContactNumbers = new Map((houseContacts as { id: string; contact_phone: string }[]).map((item) => [item.id, item.contact_phone]));
-
     return Response.json({
       users,
       totalUsers: Number(userCount.count),
@@ -205,6 +201,9 @@ export async function GET(request: Request) {
         amenities: house.amenities,
         distance: house.distance,
         coordinates: house.coordinates,
+        locationUrl: house.locationUrl ?? null,
+        furnishing: house.furnishing ?? "",
+        contactMethods: house.contactMethods ?? [],
 
         hidden: Boolean(
           houseControls.get(house.id)?.is_hidden,
@@ -220,7 +219,7 @@ export async function GET(request: Request) {
         ownerName: house.ownerName ?? null,
         ownerMemberSince: house.ownerMemberSince ?? null,
         ownerListingCount: house.ownerListingCount ?? 0,
-        contactPhone: houseContactNumbers.get(house.id) ?? "",
+        contactPhone: house.contactPhone ?? "",
       })),
       houseReports,
 

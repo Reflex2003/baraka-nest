@@ -1,7 +1,7 @@
 import { ensureFeatureTables } from "@/lib/db";
 import { roommateDb } from "@/lib/roommate-db";
 import type { HouseListing } from "@/lib/houses";
-import { mapUrlFromCoordinates, normalizeContactMethods, normalizeMapLocationUrl } from "@/lib/listing-input.mjs";
+import { mapUrlFromCoordinates, mergeCanonicalPhoneContactMethods, normalizeContactMethods, normalizeMapLocationUrl } from "@/lib/listing-input.mjs";
 
 type HouseRow = Omit<HouseListing, "amenities" | "coordinates" | "monthlyBills"> & {
   amenities: string;
@@ -85,7 +85,7 @@ export async function getHouseListings(options: { includeHidden?: boolean } = {}
   }
   return rows.map((row) => ({
     ...formatHouseRow(row),
-    contactMethods: contactsByHouse.get(row.id)?.length ? contactsByHouse.get(row.id) : formatHouseRow(row).contactMethods,
+    contactMethods: mergeCanonicalPhoneContactMethods(contactsByHouse.get(row.id) ?? [], row.contact_phone ?? ""),
     ownerUserId: row.owner_user_id ?? null,
     verificationStatus: (row.verification_status && ["pending", "verified", "unverified", "under_review", "suspended"].includes(row.verification_status)
       ? row.verification_status
@@ -126,7 +126,7 @@ export async function getHouseListing(id: string) {
     ownerName: row.owner_name ?? null,
     ownerMemberSince: row.owner_member_since ?? null,
     ownerListingCount: Number(row.owner_listing_count ?? 0),
-    contactMethods: contactRows.length ? contactRows.map((item) => ({ id: item.id, kind: item.kind as "phone" | "whatsapp" | "social", platform: item.platform as "phone" | "whatsapp" | "instagram" | "facebook" | "telegram" | "tiktok" | "x" | "link", label: item.label, value: item.value, url: item.url })) : formatted.contactMethods,
+    contactMethods: mergeCanonicalPhoneContactMethods(contactRows.map((item) => ({ id: item.id, kind: item.kind as "phone" | "whatsapp" | "social", platform: item.platform as "phone" | "whatsapp" | "instagram" | "facebook" | "telegram" | "tiktok" | "x" | "link", label: item.label, value: item.value, url: item.url })), row.contact_phone ?? ""),
     media: media.map((item) => ({
       id: item.id,
       url: item.url,
